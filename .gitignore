@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+.agent-runs/
+*.log
+*.key
+*.pem
+*.tar

@@ -1,0 +1,256 @@
+@layer app {
+  html {
+    scroll-behavior: smooth;
+  }
+  .page-frame {
+    min-inline-size: 0;
+    inline-size: 100%;
+  }
+  .playground-page [hidden] {
+    display: none;
+  }
+  .playground-page > section {
+    min-inline-size: 0;
+    inline-size: 100%;
+  }
+  .auth-panel {
+    max-inline-size: 48rem;
+  }
+  .site-header {
+    background: var(--color-background-surface);
+  }
+  .brand {
+    text-decoration: none;
+  }
+  .brand:hover {
+    text-decoration: none;
+  }
+  .brand-subtitle {
+    border-inline-start: thin solid var(--color-border);
+    padding-inline-start: var(--spacing-3);
+  }
+  .docs-sidebar {
+    inline-size: calc(var(--spacing-10) * 6.5);
+  }
+  .docs-page {
+    inline-size: 100%;
+    max-inline-size: calc(var(--spacing-10) * 32);
+    grid-template-columns: minmax(0, 1fr) calc(var(--spacing-10) * 5);
+    align-self: center;
+    margin-inline: auto;
+    align-items: start;
+  }
+  .docs-page:not(:has(> .article-outline)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .article {
+    min-inline-size: 0;
+  }
+  .article > section,
+  .article section[id] {
+    min-inline-size: 0;
+    scroll-margin-block-start: calc(var(--spacing-10) * 2);
+  }
+  .doc-copy {
+    max-inline-size: 80ch;
+    min-inline-size: 0;
+  }
+  .doc-code {
+    position: relative;
+    min-inline-size: 0;
+  }
+  .doc-code .astryx-code-block-header {
+    padding-inline-end: calc(var(--spacing-10) * 4);
+    min-block-size: var(--spacing-10);
+  }
+  .doc-code-copy {
+    position: absolute;
+    inset-block-start: var(--spacing-1);
+    inset-inline-end: var(--spacing-2);
+  }
+  .hero-description {
+    max-inline-size: 42ch;
+    line-height: 1.6;
+  }
+  .article-outline {
+    position: sticky;
+    inset-block-start: var(--spacing-6);
+    padding-block-start: var(--spacing-1);
+    align-self: start;
+  }
+  .endpoint-path {
+    border: thin solid var(--color-border);
+    border-radius: var(--radius-container);
+    background: var(--color-background-muted);
+  }
+  .path-text {
+    overflow-wrap: anywhere;
+  }
+  .http-method.post {
+    color: var(--color-text-green);
+  }
+  .http-method.get {
+    color: var(--color-text-blue);
+  }
+  .quick-step {
+    padding-block: var(--spacing-1);
+  }
+  .step-number {
+    padding-block-start: var(--spacing-1);
+    min-inline-size: var(--spacing-8);
+  }
+  .playground-page {
+    max-inline-size: calc(var(--spacing-10) * 33);
+    margin-inline: auto;
+    inline-size: 100%;
+  }
+  .json-editor textarea,
+  .path-input input {
+    font-family: var(--font-family-code);
+    font-size: var(--text-code-size);
+  }
+  .response-panel {
+    position: sticky;
+    inset-block-start: var(--spacing-6);
+    min-inline-size: 0;
+  }
+  .request-panel {
+    min-inline-size: 0;
+  }
+  .response-empty {
+    background: var(--color-background-muted);
+    border-radius: var(--radius-container);
+    min-block-size: calc(var(--spacing-10) * 5);
+    justify-content: center;
+  }
+  .response-success {
+    color: var(--color-text-green);
+  }
+  .response-error {
+    color: var(--color-text-red);
+  }
+  .order-reference {
+    overflow-wrap: anywhere;
+  }
+  .quick-column {
+    min-inline-size: 0;
+  }
+  .selected-location {
+    overflow-wrap: anywhere;
+    padding-inline-start: var(--spacing-3);
+    border-inline-start: thin solid var(--color-border);
+  }
+  .route-map {
+    block-size: clamp(18rem, 42vh, 28rem);
+    inline-size: 100%;
+    border: thin solid var(--color-border);
+    border-radius: var(--radius-container);
+    isolation: isolate;
+    z-index: 0;
+  }
+  .route-map .maplibregl-ctrl-group {
+    border: thin solid var(--color-border);
+    border-radius: var(--radius-container);
+    overflow: hidden;
+    box-shadow: 0 var(--spacing-1) var(--spacing-4) var(--color-border);
+  }
+  .route-map .maplibregl-ctrl-group button {
+    background: var(--color-background-surface);
+    color: var(--color-text-primary);
+    inline-size: var(--spacing-10);
+    block-size: var(--spacing-10);
+  }
+  .route-map .maplibregl-ctrl-attrib {
+    font-family: var(--font-family-body);
+    font-size: var(--text-supporting-size);
+    padding-inline: var(--spacing-2);
+    border-radius: var(--radius-container);
+  }
+  .map-pin {
+    display: grid;
+    place-items: center;
+    inline-size: var(--spacing-10);
+    block-size: var(--spacing-10);
+    padding: 0;
+    border: var(--spacing-0-5, 0.125rem) solid var(--map-route-outline);
+    border-radius: 50%;
+    color: var(--map-route-outline);
+    box-shadow: 0 var(--spacing-1) var(--spacing-4) var(--color-border);
+    cursor: pointer;
+  }
+  .map-pin-icon {
+    inline-size: var(--spacing-6);
+    block-size: var(--spacing-6);
+    background: currentColor;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+    pointer-events: none;
+  }
+  .map-pin:focus-visible {
+    outline: var(--spacing-0-5, 0.125rem) solid var(--map-route-color);
+    outline-offset: var(--spacing-1);
+  }
+  .map-pin::after {
+    content: "";
+    position: absolute;
+    inset-block-end: calc(var(--spacing-1) * -1);
+    inline-size: var(--spacing-2);
+    block-size: var(--spacing-2);
+    background: inherit;
+    transform: rotate(45deg);
+  }
+  .map-pin-pickup {
+    background: var(--map-route-color);
+  }
+  .map-pin-pickup .map-pin-icon {
+    mask-image: url("/icons/phosphor/map-pin.svg");
+  }
+  .map-pin-dropoff {
+    background: var(--map-dropoff-color);
+  }
+  .map-pin-dropoff .map-pin-icon {
+    mask-image: url("/icons/phosphor/flag-checkered.svg");
+  }
+  @media (max-width: 72rem) {
+    .docs-page {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .article-outline {
+      display: none;
+    }
+  }
+  @media (max-width: 64rem) {
+    .playground-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .response-panel {
+      position: static;
+    }
+  }
+  @media (max-width: 48rem) {
+    .docs-page {
+      padding: var(--spacing-4);
+      gap: var(--spacing-4);
+    }
+    .header-docs,
+    .header-start,
+    .brand-subtitle {
+      display: none;
+    }
+    .site-header {
+      padding-inline: var(--spacing-3);
+    }
+    .playground-page {
+      padding: var(--spacing-4);
+    }
+    .credentials-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}

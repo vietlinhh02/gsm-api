@@ -1,0 +1,21 @@
+repos:
+  - repo: local
+    hooks:
+      - id: go-format
+        name: Go formatting
+        language: system
+        entry: bash -c 'set -euo pipefail; test -z "$(gofmt -l cmd internal)"'
+        pass_filenames: false
+        types: [go]
+      - id: go-vet
+        name: Go static analysis
+        language: system
+        entry: go vet ./...
+        pass_filenames: false
+        types: [go]
+      - id: workflow-security
+        name: GitHub Actions security
+        language: system
+        entry: zizmor --offline --no-progress .github/workflows
+        pass_filenames: false
+        files: ^\.github/workflows/

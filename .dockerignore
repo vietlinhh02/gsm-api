@@ -1,0 +1,10 @@
+.git
+.agent-runs
+.env
+.env.*
+frontend
+.github
+deploy
+*.log
+*.key
+*.pem

@@ -1,0 +1,35 @@
+{
+  "name": "greensm-api-docs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#lib/*": "./lib/*"
+  },
+  "scripts": {
+    "dev": "node scripts/prepare-map-worker.mjs && next dev",
+    "build": "node scripts/prepare-map-worker.mjs && next build",
+    "start": "next start",
+    "lint": "oxlint app components lib scripts tests",
+    "format": "oxfmt app components lib scripts tests package.json jsconfig.json playwright.config.mjs",
+    "format:check": "oxfmt --check app components lib scripts tests package.json jsconfig.json playwright.config.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "astryx": "node node_modules/@astryxdesign/cli/clients/cli/bin/astryx.mjs"
+  },
+  "dependencies": {
+    "@astryxdesign/core": "0.7.0",
+    "@astryxdesign/theme-neutral": "0.7.0",
+    "@stylexjs/stylex": "0.19.1",
+    "maplibre-gl": "6.14.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@astryxdesign/cli": "0.7.0",
+    "@playwright/test": "1.64.0",
+    "oxfmt": "0.73.0",
+    "oxlint": "1.87.0"
+  }
+}
