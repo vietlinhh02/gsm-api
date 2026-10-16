@@ -27,6 +27,10 @@ function Authentication({ model }) {
         <SiteIcon name="key" color="accent" />
         <Heading level={3}>Xác thực</Heading>
       </HStack>
+      <Text as="p" color="secondary">
+        Để trống Client ID và Client secret để dùng cấu hình máy chủ của playground. Điền cả hai nếu
+        bạn muốn dùng thông tin xác thực riêng.
+      </Text>
       <Grid columns={2} gap={3} className="credentials-grid">
         <TextInput
           label="Client ID"

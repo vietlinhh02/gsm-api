@@ -139,3 +139,33 @@ test("SSE proxy times out if upstream never returns response headers", async () 
   );
   assert.equal(response.status, 504);
 });
+
+test("empty credentials use server configuration without replacing explicit credentials", async () => {
+  for (const explicit of [false, true]) {
+    const body = new URLSearchParams({
+      client_id: explicit ? "custom-id" : "",
+      client_secret: explicit ? "custom-secret" : "",
+      grant_type: "client_credentials",
+      scope: "sandbox.ride.trips",
+    });
+    const response = await forwardRequest(
+      new Request("https://docs/api/backend/v1/sandbox/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body,
+      }),
+      ["v1", "sandbox", "token"],
+      {
+        clientId: "server-id",
+        clientSecret: "server-secret",
+        fetchImpl: async (_url, options) => {
+          const form = new URLSearchParams(new TextDecoder().decode(options.body));
+          assert.equal(form.get("client_id"), explicit ? "custom-id" : "server-id");
+          assert.equal(form.get("client_secret"), explicit ? "custom-secret" : "server-secret");
+          return Response.json({ access_token: "test-token" });
+        },
+      },
+    );
+    assert.equal(response.status, 200);
+  }
+});

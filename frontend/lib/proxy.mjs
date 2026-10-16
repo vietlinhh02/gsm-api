@@ -60,8 +60,36 @@ function backendSignal(request, pathname, options) {
   };
 }
 
+function serverCredentials(options) {
+  return {
+    clientId: options.clientId ?? process.env.CLIENT_ID,
+    clientSecret: options.clientSecret ?? process.env.CLIENT_SECRET,
+  };
+}
+
+async function upstreamBody(request, pathname, options) {
+  if (request.method === "GET") return undefined;
+  const body = await request.arrayBuffer();
+  const tokenRequest = ["v1/public/token", "v1/sandbox/token"].includes(pathname);
+  if (!tokenRequest) return body;
+  const form = new URLSearchParams(new TextDecoder().decode(body));
+  const { clientId, clientSecret } = serverCredentials(options);
+  const hasCredentials = Boolean(form.get("client_id") || form.get("client_secret"));
+  const configured = Boolean(clientId && clientSecret);
+  if (hasCredentials || !configured) {
+    return body;
+  }
+  form.set("client_id", clientId);
+  form.set("client_secret", clientSecret);
+  return new TextEncoder().encode(form.toString());
+}
+
 async function fetchBackend(request, segments, options) {
-  const origin = options.origin ?? process.env.API_ORIGIN ?? "http://localhost:8081";
+  const origin =
+    options.origin ??
+    process.env.API_ORIGIN ??
+    (process.env.NODE_ENV === "production" ? undefined : "http://localhost:8081");
+  if (!origin) throw new Error("API_ORIGIN is required in production");
   const fetchUpstream = options.fetchImpl ?? fetch;
   const pathname = segments.join("/");
   const { signal, clearTimeout: clearRequestTimeout } = backendSignal(request, pathname, options);
@@ -71,7 +99,7 @@ async function fetchBackend(request, segments, options) {
       {
         method: request.method,
         headers: forwardedHeaders(request),
-        body: request.method === "GET" ? undefined : await request.arrayBuffer(),
+        body: await upstreamBody(request, pathname, options),
         cache: "no-store",
         signal,
       },
