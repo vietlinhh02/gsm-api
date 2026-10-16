@@ -3,13 +3,16 @@ import { test } from "node:test";
 import { forwardRequest } from "#lib/proxy.mjs";
 
 test("proxy preserves token, query, status and JSON response without caching", async () => {
-  const request = new Request("http://docs/api/backend/v1/ride/orders/id?extra_components=path", {
-    headers: { authorization: "Bearer test-token" },
-  });
-  const response = await forwardRequest(request, ["v1", "ride", "orders", "id"], {
+  const request = new Request(
+    "http://docs/api/backend/v1/sandbox/ride/orders/id?extra_components=path",
+    {
+      headers: { authorization: "Bearer test-token" },
+    },
+  );
+  const response = await forwardRequest(request, ["v1", "sandbox", "ride", "orders", "id"], {
     origin: "http://api:8081/",
     fetchImpl: async (url, options) => {
-      assert.equal(url, "http://api:8081/v1/ride/orders/id?extra_components=path");
+      assert.equal(url, "http://api:8081/v1/sandbox/ride/orders/id?extra_components=path");
       assert.equal(options.headers.get("authorization"), "Bearer test-token");
       assert.equal(options.cache, "no-store");
       assert.equal(options.body, undefined);
@@ -23,12 +26,12 @@ test("proxy preserves token, query, status and JSON response without caching", a
 
 test("form token exchange is forwarded unchanged", async () => {
   const body = "client_id=local-client&grant_type=client_credentials";
-  const request = new Request("http://docs/api/backend/v1/public/token", {
+  const request = new Request("http://docs/api/backend/v1/sandbox/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body,
   });
-  const response = await forwardRequest(request, ["v1", "public", "token"], {
+  const response = await forwardRequest(request, ["v1", "sandbox", "token"], {
     fetchImpl: async (_url, options) => {
       assert.equal(new TextDecoder().decode(options.body), body);
       assert.equal(options.headers.get("content-type"), "application/x-www-form-urlencoded");
@@ -62,10 +65,12 @@ test("network failure and timeout become actionable JSON", async () => {
 test("unknown paths, traversal and wrong HTTP methods never contact the backend", async () => {
   const scenarios = [
     [["v1", "ride", "update-status"], "POST", 404],
+    [["v1", "public", "token"], "POST", 404],
+    [["v1", "ride", "list-user-orders"], "GET", 404],
     [["admin", "delete"], "GET", 404],
     [["v1", "..", "token"], "POST", 400],
     [["v1", "ride/orders/id"], "GET", 400],
-    [["v1", "ride", "list-user-orders"], "POST", 405],
+    [["v1", "sandbox", "ride", "list-user-orders"], "POST", 405],
   ];
   for (const [path, method, status] of scenarios) {
     const response = await forwardRequest(

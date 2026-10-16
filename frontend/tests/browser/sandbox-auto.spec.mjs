@@ -6,6 +6,9 @@ test("sandbox receives SSE status changes without polling", async ({ page }) => 
   let manualUpdates = 0;
   await page.route("**/api/backend/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    expect(path === "/api/backend/healthz" || path.startsWith("/api/backend/v1/sandbox/")).toBe(
+      true,
+    );
     let data;
     if (path.endsWith("/token")) {
       data = { access_token: "sandbox-test-token" };
@@ -66,7 +69,8 @@ test("sandbox receives SSE status changes without polling", async ({ page }) => 
     await route.fulfill({ json: data });
   });
   await page.goto("/playground");
-  await page.getByRole("button", { name: "Dùng Sandbox", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Môi trường", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Dùng Sandbox", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "So sánh giá", exact: true }).click();
   await page.getByRole("button", { name: "Đặt xe", exact: true }).click();
   await expect(page.getByText("Mã chuyến: automatic-trip", { exact: true })).toBeVisible();

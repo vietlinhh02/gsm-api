@@ -75,42 +75,30 @@ func ConfigFromEnv() Config {
 
 func (a *API) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /v1/public/token", a.handleToken(false))
-	mux.HandleFunc("POST /v1/sandbox/token", a.handleToken(true))
-	mux.Handle("POST /v1/ride/list-available-services", a.authorized(false, a.listServices))
-	mux.Handle("POST /v1/ride/estimate/order", a.authorized(false, a.estimateTrip))
-	mux.Handle("POST /v1/ride/estimate/hour-order", a.authorized(false, a.estimateHour))
-	mux.Handle("POST /v1/ride/create-order", a.authorized(false, a.createOrder))
-	mux.Handle("GET /v1/ride/orders/{id}", a.authorized(false, a.getOrder))
-	mux.Handle("GET /v1/ride/list-user-orders", a.authorized(false, a.listOrders))
-	mux.Handle("POST /v1/ride/cancel-order", a.authorized(false, a.cancelOrder))
-	mux.Handle("GET /v1/place/geocode", a.authorized(false, a.geocode))
-	mux.Handle("POST /v1/sandbox/ride/list-available-services", a.authorized(true, a.listServices))
-	mux.Handle("POST /v1/sandbox/ride/estimate/order", a.authorized(true, a.estimateTrip))
-	mux.Handle("POST /v1/sandbox/ride/estimate/hour-order", a.authorized(true, a.estimateHour))
-	mux.Handle("POST /v1/sandbox/ride/create-order", a.authorized(true, a.createOrder))
-	mux.Handle("GET /v1/sandbox/ride/orders/{id}", a.authorized(true, a.getOrder))
-	mux.Handle("GET /v1/sandbox/ride/orders/{id}/events", a.authorized(true, a.streamOrder))
-	mux.Handle("GET /v1/sandbox/ride/list-user-orders", a.authorized(true, a.listOrders))
-	mux.Handle("POST /v1/sandbox/ride/cancel-order", a.authorized(true, a.cancelOrder))
-	mux.Handle("GET /v1/sandbox/place/geocode", a.authorized(true, a.geocode))
-	mux.Handle("POST /v1/sandbox/ride/update-status", a.authorized(true, a.updateStatus))
+	mux.HandleFunc("POST /v1/sandbox/token", a.handleToken())
+	mux.Handle("POST /v1/sandbox/ride/list-available-services", a.authorized(a.listServices))
+	mux.Handle("POST /v1/sandbox/ride/estimate/order", a.authorized(a.estimateTrip))
+	mux.Handle("POST /v1/sandbox/ride/estimate/hour-order", a.authorized(a.estimateHour))
+	mux.Handle("POST /v1/sandbox/ride/create-order", a.authorized(a.createOrder))
+	mux.Handle("GET /v1/sandbox/ride/orders/{id}", a.authorized(a.getOrder))
+	mux.Handle("GET /v1/sandbox/ride/orders/{id}/events", a.authorized(a.streamOrder))
+	mux.Handle("GET /v1/sandbox/ride/list-user-orders", a.authorized(a.listOrders))
+	mux.Handle("POST /v1/sandbox/ride/cancel-order", a.authorized(a.cancelOrder))
+	mux.Handle("GET /v1/sandbox/place/geocode", a.authorized(a.geocode))
+	mux.Handle("POST /v1/sandbox/ride/update-status", a.authorized(a.updateStatus))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	return recoverMiddleware(a.Logger, mux)
 }
 
-func (a *API) handleToken(sandbox bool) http.HandlerFunc {
+func (a *API) handleToken() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			writeError(w, http.StatusBadRequest, 400, "invalid form body")
 			return
 		}
-		scope := "ride.trips"
-		if sandbox {
-			scope = "sandbox.ride.trips"
-		}
+		const scope = "sandbox.ride.trips"
 		if r.Form.Get("client_id") != a.Config.ClientID ||
 			r.Form.Get("client_secret") != a.Config.ClientSecret {
 			writeError(w, http.StatusUnauthorized, 401, "invalid client credentials")
@@ -120,14 +108,11 @@ func (a *API) handleToken(sandbox bool) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, 400, "grant_type must be client_credentials")
 			return
 		}
-		if sandbox && r.Form.Get("scope") != "" && r.Form.Get("scope") != scope {
+		if r.Form.Get("scope") != "" && r.Form.Get("scope") != scope {
 			writeError(w, http.StatusBadRequest, 400, "invalid scope for sandbox token")
 			return
 		}
-		if !sandbox && r.Form.Get("scope") != scope {
-			writeError(w, http.StatusBadRequest, 400, "scope must be ride.trips")
-			return
-		}
+
 		token, err := randomHex(32)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, 500, "could not generate access token")
@@ -164,7 +149,7 @@ type requestContextKey string
 const clientContextKey requestContextKey = "client_id"
 const environmentContextKey requestContextKey = "environment"
 
-func (a *API) authorized(sandbox bool, next http.HandlerFunc) http.Handler {
+func (a *API) authorized(next http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := strings.TrimSpace(r.Header.Get("Authorization"))
 		parts := strings.SplitN(header, " ", 2)
@@ -180,10 +165,7 @@ func (a *API) authorized(sandbox bool, next http.HandlerFunc) http.Handler {
 			hashToken(parts[1]),
 		).
 			Scan(&clientID, &scope, &expires)
-		want := "ride.trips"
-		if sandbox {
-			want = "sandbox.ride.trips"
-		}
+		const want = "sandbox.ride.trips"
 		if errors.Is(err, sql.ErrNoRows) ||
 			(err == nil && (expires < time.Now().Unix() || scope != want)) {
 			writeError(
@@ -198,10 +180,7 @@ func (a *API) authorized(sandbox bool, next http.HandlerFunc) http.Handler {
 			a.dbError(w, "validate access token", err)
 			return
 		}
-		environment := "production"
-		if sandbox {
-			environment = "sandbox"
-		}
+		const environment = "sandbox"
 		ctx := context.WithValue(r.Context(), clientContextKey, clientID)
 		ctx = context.WithValue(ctx, environmentContextKey, environment)
 		next(w, r.WithContext(ctx))

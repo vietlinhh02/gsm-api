@@ -43,7 +43,7 @@ export const endpoints = [
     title: "Dịch vụ khả dụng",
     english: "Available services",
     method: "POST",
-    path: "/v1/ride/list-available-services",
+    path: "/v1/sandbox/ride/list-available-services",
     group: "Khám phá dịch vụ",
     description: "Tìm loại xe phục vụ tại điểm đón trước khi lấy báo giá.",
     fields: [
@@ -79,7 +79,7 @@ export const endpoints = [
     title: "Ước tính chuyến",
     english: "Estimate RIDE-TRIP",
     method: "POST",
-    path: "/v1/ride/estimate/order",
+    path: "/v1/sandbox/ride/estimate/order",
     group: "Báo giá",
     description: "Lấy báo giá theo tuyến đường. Dùng fee_id để đặt chuyến theo đúng báo giá này.",
     fields: [
@@ -120,7 +120,7 @@ export const endpoints = [
     title: "Ước tính theo giờ",
     english: "Estimate RIDE-HOUR",
     method: "POST",
-    path: "/v1/ride/estimate/hour-order",
+    path: "/v1/sandbox/ride/estimate/hour-order",
     group: "Báo giá",
     description: "Lấy giá gói thuê xe theo giờ. Chọn dịch vụ RIDE-HOUR rồi dùng fee_id để đặt.",
     fields: [
@@ -179,7 +179,7 @@ export const endpoints = [
     title: "Đặt chuyến",
     english: "Create a ride",
     method: "POST",
-    path: "/v1/ride/create-order",
+    path: "/v1/sandbox/ride/create-order",
     group: "Quản lý chuyến",
     description:
       "Đặt chuyến từ báo giá còn hiệu lực. Loại xe, thanh toán, điểm dừng và dịch vụ bổ sung phải khớp báo giá.",
@@ -218,7 +218,7 @@ export const endpoints = [
     title: "Chi tiết chuyến",
     english: "Ride details",
     method: "GET",
-    path: "/v1/ride/orders/{id}?extra_components=driver,path",
+    path: "/v1/sandbox/ride/orders/{id}?extra_components=driver,path",
     group: "Quản lý chuyến",
     description: "Lấy trạng thái hiện tại, tài xế và các điểm trên chuyến.",
     fields: [
@@ -246,7 +246,7 @@ export const endpoints = [
     title: "Danh sách chuyến",
     english: "List rides",
     method: "GET",
-    path: "/v1/ride/list-user-orders",
+    path: "/v1/sandbox/ride/list-user-orders",
     group: "Quản lý chuyến",
     description: "Liệt kê chuyến đi của ứng dụng đang xác thực, chuyến mới nhất ở đầu danh sách.",
     fields: [],
@@ -267,7 +267,7 @@ export const endpoints = [
     title: "Hủy chuyến",
     english: "Cancel a ride",
     method: "POST",
-    path: "/v1/ride/cancel-order",
+    path: "/v1/sandbox/ride/cancel-order",
     group: "Quản lý chuyến",
     description:
       "Hủy chuyến trước khi đón khách. Không thể hủy chuyến đang đi, đã hoàn thành hoặc đã hủy.",
@@ -287,7 +287,7 @@ export const endpoints = [
     title: "Tra cứu địa chỉ",
     english: "Geocode / reverse geocode",
     method: "GET",
-    path: "/v1/place/geocode?text=Van%20Mieu%20Ha%20Noi&max=5",
+    path: "/v1/sandbox/place/geocode?text=Van%20Mieu%20Ha%20Noi&max=5",
     group: "Bản đồ",
     description: "Tìm tọa độ từ địa chỉ hoặc tìm địa chỉ từ tọa độ.",
     fields: [
@@ -308,7 +308,7 @@ export const endpoints = [
       ],
     },
     notes: [
-      "Tìm địa chỉ từ tọa độ: /v1/place/geocode?reverse=true&lat=21.0287&lng=105.8524&max=5",
+      "Tìm địa chỉ từ tọa độ: /v1/sandbox/place/geocode?reverse=true&lat=21.0287&lng=105.8524&max=5",
       "Nominatim công khai giới hạn một request mỗi giây.",
       "Dùng dịch vụ chuyên dụng khi triển khai chính thức.",
     ],
@@ -320,7 +320,6 @@ export const endpoints = [
     method: "POST",
     path: "/v1/sandbox/ride/update-status",
     group: "Trạng thái chuyến",
-    sandboxOnly: true,
     description: "Thay đổi trạng thái chuyến đi hoặc điểm dừng và gửi thông báo qua webhook.",
     fields: [
       field("update_type", "string", true, "order hoặc point."),
@@ -331,9 +330,7 @@ export const endpoints = [
     ],
     sample: { update_type: "order", order_id: "<order_id>", status: "ASSIGNED" },
     response: { data: { message: "ok" } },
-    notes: [
-      "Dùng access token có scope sandbox.ride.trips. Chuyến Production không dùng endpoint này.",
-    ],
+    notes: ["Dùng access token có scope sandbox.ride.trips."],
   },
 ];
 
@@ -375,12 +372,12 @@ export const guides = {
         "Chọn token endpoint và scope theo môi trường trong bảng dưới.",
     ],
     code: [
-      "curl -X POST https://gsm-api.aaisee.me/v1/public/token \\",
+      "curl -X POST https://gsm-api.aaisee.me/v1/sandbox/token \\",
       "  -H 'Content-Type: application/x-www-form-urlencoded' \\",
       "  --data-urlencode 'client_id=local-client' \\",
       "  --data-urlencode 'client_secret=local-secret' \\",
       "  --data-urlencode 'grant_type=client_credentials' \\",
-      "  --data-urlencode 'scope=ride.trips'",
+      "  --data-urlencode 'scope=sandbox.ride.trips'",
     ].join("\n"),
     language: "bash",
   },
@@ -398,7 +395,7 @@ export const guides = {
         event_id: "<uuid>",
         event_time: 1770350401,
         event_type: "order_status_changed",
-        resource_href: "https://gsm-api.aaisee.me/v1/ride/orders/<id>",
+        resource_href: "https://gsm-api.aaisee.me/v1/sandbox/ride/orders/<id>",
         data: { order_id: "<id>", status: "ASSIGNED" },
         meta: { resource_id: "<id>", status: "ASSIGNED", user_id: "local-client" },
       },

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { requestApi, apiErrorMessage } from "#lib/http.mjs";
 import {
   initialState,
-  changeEnvironment,
   chooseEndpoint,
   findEndpoint,
   parseRequestBody,
@@ -22,21 +21,19 @@ export function usePlayground(endpointId) {
   const [state, setState] = useState(() => initialState(endpointId));
   const endpoint = findEndpoint(state.endpointId);
   const patch = (values) => setState((previous) => ({ ...previous, ...values }));
-  const selectEnvironment = (value) => setState((previous) => changeEnvironment(previous, value));
   const selectEndpoint = (id) => setState((previous) => chooseEndpoint(previous, id));
 
   async function authenticate() {
     patch({ busy: true, error: "", result: null, token: "" });
     try {
-      const sandbox = state.environment === "sandbox";
       const body = new URLSearchParams({
         client_id: state.clientId,
         client_secret: state.clientSecret,
         grant_type: "client_credentials",
-        scope: sandbox ? "sandbox.ride.trips" : "ride.trips",
+        scope: "sandbox.ride.trips",
       });
       const result = await requestApi({
-        path: sandbox ? "/v1/sandbox/token" : "/v1/public/token",
+        path: "/v1/sandbox/token",
         method: "POST",
         body,
         contentType: "application/x-www-form-urlencoded",
@@ -85,7 +82,7 @@ export function usePlayground(endpointId) {
     }
   }
 
-  return { state, endpoint, patch, selectEnvironment, selectEndpoint, authenticate, send };
+  return { state, endpoint, patch, selectEndpoint, authenticate, send };
 }
 
 function tokenFromResponse(result) {

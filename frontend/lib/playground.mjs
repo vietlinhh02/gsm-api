@@ -4,22 +4,19 @@ export const findEndpoint = (id) =>
   endpoints.find((endpoint) => endpoint.id === id) ?? endpoints[0];
 export const stringify = (value) => JSON.stringify(value, null, 2);
 
-export function endpointPath(endpoint, environment) {
-  const path = endpoint.path.replace("/v1/sandbox/", "/v1/");
-  return environment === "sandbox" ? path.replace("/v1/", "/v1/sandbox/") : path;
+export function endpointPath(endpoint) {
+  return endpoint.path;
 }
 
 export function initialState(endpointId = "services") {
   const endpoint = findEndpoint(endpointId);
-  const environment = endpoint.sandboxOnly ? "sandbox" : "production";
   return {
     endpointId: endpoint.id,
-    environment,
     token: "",
     clientId: "",
     clientSecret: "",
     body: stringify(endpoint.sample ?? {}),
-    path: endpointPath(endpoint, environment),
+    path: endpointPath(endpoint),
     drafts: {},
     orderId: "",
     booking: null,
@@ -29,32 +26,15 @@ export function initialState(endpointId = "services") {
   };
 }
 
-/** Discard tokens and quotes that belong to the previous environment. */
-export function changeEnvironment(state, environment) {
-  const endpoint = findEndpoint(state.endpointId);
-  const id = endpoint.sandboxOnly && environment === "production" ? "services" : endpoint.id;
-  return {
-    ...initialState(id),
-    environment,
-    clientId: state.clientId,
-    clientSecret: state.clientSecret,
-    path: endpointPath(findEndpoint(id), environment),
-  };
-}
-
 export function chooseEndpoint(state, endpointId) {
   const endpoint = findEndpoint(endpointId);
-  const base =
-    endpoint.sandboxOnly && state.environment !== "sandbox"
-      ? changeEnvironment(state, "sandbox")
-      : state;
-  let path = endpointPath(endpoint, base.environment);
-  if (base.orderId) path = path.replace("{id}", encodeURIComponent(base.orderId));
+  let path = endpointPath(endpoint);
+  if (state.orderId) path = path.replace("{id}", encodeURIComponent(state.orderId));
   return {
-    ...base,
+    ...state,
     endpointId: endpoint.id,
     path,
-    body: base.drafts[endpoint.id] ?? stringify(endpoint.sample ?? {}),
+    body: state.drafts[endpoint.id] ?? stringify(endpoint.sample ?? {}),
     result: null,
     error: "",
   };
@@ -145,7 +125,7 @@ export function parseRequestBody(method, body) {
 }
 
 export function validatePath(path) {
-  if (!path.startsWith("/v1/") || path.includes("{") || path.includes("<")) {
-    throw new Error("Điền request URL /v1/ hợp lệ và thay ID còn thiếu trước khi gửi.");
+  if (!path.startsWith("/v1/sandbox/") || path.includes("{") || path.includes("<")) {
+    throw new Error("Điền request URL /v1/sandbox/ hợp lệ và thay ID còn thiếu trước khi gửi.");
   }
 }

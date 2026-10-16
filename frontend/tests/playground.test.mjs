@@ -3,7 +3,6 @@ import { test } from "node:test";
 import { endpoints, points } from "#lib/catalog.mjs";
 import {
   initialState,
-  changeEnvironment,
   chooseEndpoint,
   bookingFromEstimate,
   parseRequestBody,
@@ -11,27 +10,15 @@ import {
   validatePath,
 } from "#lib/playground.mjs";
 
-test("switching directly to a sandbox-only endpoint clears production token and quote", () => {
-  const state = {
-    ...initialState(),
-    token: "production-token",
-    orderId: "production-order",
-    booking: { fee_id: "production-fee" },
-    drafts: { create: "{}" },
-  };
+test("all endpoints use Sandbox and changing endpoints preserves the active trip", () => {
+  for (const endpoint of endpoints) {
+    assert.ok(initialState(endpoint.id).path.startsWith("/v1/sandbox/"));
+  }
+  const state = { ...initialState(), token: "sandbox-token", orderId: "sandbox-order" };
   const next = chooseEndpoint(state, "status");
-  assert.equal(next.environment, "sandbox");
-  assert.equal(next.token, "");
-  assert.equal(next.orderId, "");
-  assert.equal(next.booking, null);
-  assert.deepEqual(next.drafts, {});
+  assert.equal(next.token, state.token);
+  assert.equal(next.orderId, state.orderId);
   assert.equal(next.path, "/v1/sandbox/ride/update-status");
-});
-
-test("changing from sandbox-only status to production selects a supported endpoint", () => {
-  const next = changeEnvironment(initialState("status"), "production");
-  assert.equal(next.endpointId, "services");
-  assert.equal(next.path, "/v1/ride/list-available-services");
 });
 
 test("trip booking binds normalized time, route and the selected service add-ons", () => {
@@ -99,7 +86,7 @@ test("new order ID fills detail, cancel and sandbox update drafts", () => {
   const state = recordResult(initialState("create"), result, {});
   assert.equal(
     chooseEndpoint(state, "details").path,
-    "/v1/ride/orders/created-order?extra_components=driver,path",
+    "/v1/sandbox/ride/orders/created-order?extra_components=driver,path",
   );
   assert.equal(JSON.parse(chooseEndpoint(state, "cancel").body).order_id, "created-order");
 });
@@ -110,7 +97,8 @@ test("invalid JSON and missing IDs fail before sending", () => {
   }
   assert.deepEqual(parseRequestBody("POST", "{}"), {});
   assert.equal(parseRequestBody("GET", "{"), undefined);
-  assert.throws(() => validatePath("/v1/ride/orders/{id}"), /Điền request URL/);
+  assert.throws(() => validatePath("/v1/sandbox/ride/orders/{id}"), /Điền request URL/);
   assert.throws(() => validatePath("https://other.example/v1/ride"), /Điền request URL/);
-  assert.doesNotThrow(() => validatePath("/v1/ride/list-user-orders"));
+  assert.throws(() => validatePath("/v1/ride/list-user-orders"), /Điền request URL/);
+  assert.doesNotThrow(() => validatePath("/v1/sandbox/ride/list-user-orders"));
 });

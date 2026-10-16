@@ -9,7 +9,6 @@ test("Hanoi bike quote → booking → driver → completed with the real backen
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/playground");
-  await page.getByRole("button", { name: "Dùng Sandbox để test tài xế", exact: true }).click();
   await selectOption(page, "Loại xe test", "Xe máy · Green Motorcycle");
   const responsePromise = page.waitForResponse(
     (response) =>
@@ -72,7 +71,7 @@ test("map selection, swap, explicit address search, failures and mobile layout",
   await page.getByRole("button", { name: "Đảo chiều", exact: true }).click();
   await expect(dropoff).toContainText("Hồ Hoàn Kiếm");
   let calls = 0;
-  await page.route("**/api/backend/v1/place/geocode?**", async (route) => {
+  await page.route("**/api/backend/v1/sandbox/place/geocode?**", async (route) => {
     calls += 1;
     await route.fulfill({
       json: {
@@ -87,7 +86,7 @@ test("map selection, swap, explicit address search, failures and mobile layout",
   await page.getByRole("button", { name: "Tìm địa chỉ", exact: true }).click();
   await page.getByRole("button", { name: "Văn Miếu, Hà Nội", exact: true }).click();
   await expect(dropoff).toContainText("Văn Miếu, Hà Nội");
-  await page.route("**/api/backend/v1/ride/estimate/order", (route) =>
+  await page.route("**/api/backend/v1/sandbox/ride/estimate/order", (route) =>
     route.fulfill({ status: 502, json: { message: "Provider test unavailable" } }),
   );
   await page.getByRole("button", { name: "So sánh giá ô tô / xe máy", exact: true }).click();

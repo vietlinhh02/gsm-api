@@ -88,7 +88,7 @@ func TestSandboxAutomaticWebhooks(t *testing.T) {
 	defer receiver.Close()
 	h.service.Config.WebhookURL = receiver.URL
 	h.service.Config.WebhookSignKey = "test-key"
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	id := createAutomaticSandboxTrip(t, h, token)
 	ctx := context.Background()
 	for range 11 {
@@ -139,7 +139,7 @@ func createAutomaticSandboxTrip(t *testing.T, h *integrationHarness, token strin
 
 func TestSandboxCancellationStopsWorker(t *testing.T) {
 	h := newIntegrationHarness(t)
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	id := createAutomaticSandboxTrip(t, h, token)
 	requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/cancel-order", token,
 		map[string]any{"order_id": id, "cancel_code": 9000, "cancel_message": "test"}, http.StatusOK)
@@ -164,7 +164,7 @@ func TestSandboxCancellationStopsWorker(t *testing.T) {
 
 func TestSandboxResumesWithoutWebhookAndHonorsSchedule(t *testing.T) {
 	h := newIntegrationHarness(t)
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	id := createAutomaticSandboxTrip(t, h, token)
 	if _, err := h.service.Store.DB.Exec(`
   UPDATE sandbox_runs SET next_step_at=NOW()+INTERVAL '1 hour' WHERE order_id=$1`, id); err != nil {

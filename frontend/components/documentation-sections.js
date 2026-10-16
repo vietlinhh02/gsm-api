@@ -24,19 +24,19 @@ export function DescriptionTable({ rows }) {
 }
 
 export function EndpointUsage({ endpoint, documentation }) {
-  const sandboxPath = endpoint.sandboxOnly
-    ? endpoint.path
-    : endpoint.path.replace("/v1/", "/v1/sandbox/");
   return (
     <VStack gap={3} as="section" id="usage">
       <Heading level={2}>Cách sử dụng</Heading>
       <DocumentationCopy paragraphs={documentation.usage} />
       <Text as="p" type="supporting" color="secondary">
-        {endpoint.sandboxOnly
-          ? "Dùng access token có scope sandbox.ride.trips."
-          : "Production dùng scope ride.trips; Sandbox dùng scope sandbox.ride.trips."}
+        Dùng access token có scope sandbox.ride.trips.
       </Text>
-      <DocumentationCode code={sandboxPath} title="Sandbox URL" language="plaintext" width="100%" />
+      <DocumentationCode
+        code={endpoint.path}
+        title="Sandbox URL"
+        language="plaintext"
+        width="100%"
+      />
     </VStack>
   );
 }

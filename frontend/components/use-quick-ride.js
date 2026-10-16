@@ -13,16 +13,15 @@ import {
 
 async function accessToken(state) {
   if (state.token) return state.token;
-  const sandbox = state.environment === "sandbox";
   const result = await requestApi({
-    path: sandbox ? "/v1/sandbox/token" : "/v1/public/token",
+    path: "/v1/sandbox/token",
     method: "POST",
     contentType: "application/x-www-form-urlencoded",
     body: new URLSearchParams({
       client_id: state.clientId,
       client_secret: state.clientSecret,
       grant_type: "client_credentials",
-      scope: sandbox ? "sandbox.ride.trips" : "ride.trips",
+      scope: "sandbox.ride.trips",
     }),
   });
   return tokenFromResult(result);
@@ -35,8 +34,8 @@ function tokenFromResult(result) {
   return result.data.access_token;
 }
 
-function apiCaller(state, token) {
-  const prefix = state.environment === "sandbox" ? "/v1/sandbox" : "/v1";
+function apiCaller(token) {
+  const prefix = "/v1/sandbox";
   return async (path, body) => {
     const result = await requestApi({
       path: prefix + path,
@@ -93,7 +92,7 @@ export function useQuickRide(model) {
     try {
       const token = await accessToken(state);
       patch({ token });
-      const result = await task(apiCaller(state, token));
+      const result = await task(apiCaller(token));
       patch({ result, busy: false });
     } catch (failure) {
       setError(failure.message ?? "Không hoàn tất yêu cầu. Thử lại.");
@@ -159,10 +158,7 @@ function rideActions({ model, form, quote, order, setQuote, setOrder, execute })
         setOrder(created.data.data);
         setQuote(null);
         patch({ orderId: created.data.data.id });
-        if (model.state.environment === "sandbox") return created;
-        const result = await call(detailsPath(created.data.data.id));
-        setOrder(result.data.data);
-        return result;
+        return created;
       }),
     refresh: () =>
       execute(async (call) => {
@@ -172,8 +168,6 @@ function rideActions({ model, form, quote, order, setQuote, setOrder, execute })
       }),
     simulate: (status) =>
       execute(async (call) => {
-        if (model.state.environment !== "sandbox")
-          throw new Error("Chọn Sandbox để thay đổi trạng thái tài xế.");
         await call("/ride/update-status", { update_type: "order", order_id: order.id, status });
         const result = await call(detailsPath(order.id));
         setOrder(result.data.data);
@@ -194,11 +188,11 @@ function rideActions({ model, form, quote, order, setQuote, setOrder, execute })
 }
 
 function useSandboxOrderStream(state, order, setOrder, setError) {
-  const { environment, token } = state;
+  const { token } = state;
   const id = order?.id;
   const terminal = ["COMPLETED", "CANCELLED"].includes(order?.status);
   useEffect(() => {
-    if (environment !== "sandbox" || !token || !id || terminal) return;
+    if (!token || !id || terminal) return;
     const controller = new AbortController();
     void followOrder({
       id,
@@ -211,5 +205,5 @@ function useSandboxOrderStream(state, order, setOrder, setError) {
       onError: (message) => setError(message),
     });
     return () => controller.abort();
-  }, [environment, token, id, terminal, setOrder, setError]);
+  }, [token, id, terminal, setOrder, setError]);
 }

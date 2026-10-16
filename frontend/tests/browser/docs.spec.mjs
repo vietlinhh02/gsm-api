@@ -15,12 +15,14 @@ test("hour estimate → booking → detail → cancel through the real API proxy
   await page.getByRole("tab", { name: "API & JSON", exact: true }).click();
   await page.getByRole("button", { name: "Gửi request", exact: true }).click();
   await page.getByRole("button", { name: "Dùng báo giá để đặt", exact: true }).click();
-  const booking = JSON.parse(await page.getByLabel("JSON body", { exact: true }).inputValue());
+  const booking = JSON.parse(
+    await page.getByLabel("Request body (JSON)", { exact: true }).inputValue(),
+  );
   expect(booking.service_type).toBe("RIDE-HOUR");
   expect(booking.order_time).toBe(0);
   expect(booking.fee_id).not.toBe("<fee_id>");
   await page.getByRole("button", { name: "Gửi request", exact: true }).click();
-  await expect(page.getByText("Order gần nhất:", { exact: false })).toBeVisible();
+  await expect(page.getByText("Chuyến gần nhất:", { exact: false })).toBeVisible();
   await selectOption(page, "Endpoint", "GET · Chi tiết chuyến");
   await page.getByRole("button", { name: "Gửi request", exact: true }).click();
   await expect(page.getByText("HTTP 200", { exact: true })).toBeVisible();
@@ -30,19 +32,19 @@ test("hour estimate → booking → detail → cancel through the real API proxy
   expect(errors).toEqual([]);
 });
 
-test("invalid JSON is shown locally and sandbox selection clears the token", async ({ page }) => {
+test("invalid JSON is shown locally and Sandbox is the only environment", async ({ page }) => {
   await page.goto("/playground");
   await page.getByRole("tab", { name: "API & JSON", exact: true }).click();
-  await page.getByLabel("JSON body", { exact: true }).fill("{");
+  await page.getByLabel("Request body (JSON)", { exact: true }).fill("{");
   await page.getByRole("button", { name: "Gửi request", exact: true }).click();
   await expect(page.getByText(/JSON chưa hợp lệ/)).toBeVisible();
   await page.getByRole("tab", { name: "Xác thực", exact: true }).click();
-  await page.getByLabel("Bearer token", { exact: true }).fill("production-token");
-  await selectOption(page, "Môi trường", "Sandbox · local");
-  await expect(page.getByLabel("Bearer token", { exact: true })).toHaveValue("");
+  await page.getByLabel("Bearer token", { exact: true }).fill("sandbox-token");
+  await expect(page.getByRole("combobox", { name: "Môi trường", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Bearer token", { exact: true })).toHaveValue("sandbox-token");
   await page.getByRole("tab", { name: "API & JSON", exact: true }).click();
   await selectOption(page, "Endpoint", "POST · Mô phỏng trạng thái");
-  await expect(page.getByLabel("Đường dẫn", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Request URL", { exact: true })).toHaveValue(
     "/v1/sandbox/ride/update-status",
   );
 });

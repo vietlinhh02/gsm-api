@@ -328,7 +328,7 @@ function driverSummary(order) {
 
 function OrderButtons({ ride, model }) {
   const enabled = simulationActions(ride.order.status);
-  const canSimulate = !model.state.busy && model.state.environment === "sandbox";
+  const canSimulate = !model.state.busy;
   const actions = [
     {
       label: "Gán tài xế",
@@ -380,7 +380,6 @@ function OrderButtons({ ride, model }) {
 function OrderControls({ ride, model }) {
   const { order } = ride;
   if (!order) return null;
-  const sandbox = model.state.environment === "sandbox";
   const fare = order.fare?.estimate;
   return (
     <VStack gap={4} className="quick-order" aria-live="polite">
@@ -389,16 +388,9 @@ function OrderControls({ ride, model }) {
       <Text as="p" type="supporting" className="order-reference">{`Mã chuyến: ${order.id}`}</Text>
       {fare && <Text as="p">{`Giá đã chốt: ${money(fare.total_pay)}`}</Text>}
       <Text as="p">{driverSummary(order)}</Text>
-      {sandbox && (
-        <Text as="p" type="supporting">
-          Sandbox tự chạy chuyến và cập nhật trạng thái. Mỗi bước khoảng 5 giây.
-        </Text>
-      )}
-      {!sandbox && (
-        <Text as="p" type="supporting">
-          Chọn Sandbox và tạo chuyến mới để thay đổi trạng thái tài xế.
-        </Text>
-      )}
+      <Text as="p" type="supporting">
+        Sandbox tự chạy chuyến và cập nhật trạng thái. Mỗi bước khoảng 5 giây.
+      </Text>
       <OrderButtons ride={ride} model={model} />
     </VStack>
   );
@@ -420,15 +412,6 @@ export default function QuickRide({ model }) {
             Chọn điểm đón và điểm đến để xem giá.
           </Text>
         </VStack>
-        {state.environment !== "sandbox" && (
-          <Button
-            label="Dùng Sandbox"
-            icon={<SiteIcon name="flask" />}
-            variant="secondary"
-            onClick={() => model.selectEnvironment("sandbox")}
-            isDisabled={state.busy}
-          />
-        )}
       </HStack>
       <Grid columns={2} gap={6} align="start" className="playground-grid">
         <VStack gap={5} className="quick-column">

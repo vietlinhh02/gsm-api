@@ -78,7 +78,7 @@ export const endpointDocumentation = {
   },
   create: {
     usage: [
-      "Lấy fee_id từ báo giá cùng Client ID và môi trường trước khi tạo chuyến.",
+      "Lấy fee_id từ báo giá cùng Client ID trước khi tạo chuyến.",
       "Giữ nguyên service, order_time, payment_method, tọa độ, tên khách và điện thoại đã báo giá.",
       "address và short_address cũng được đối chiếu. Nên điền đầy đủ ngay khi lấy báo giá.",
       "Lưu data.id để tra cứu, hủy chuyến hoặc đối chiếu webhook. Mỗi lần gọi tạo một chuyến mới.",
@@ -220,10 +220,7 @@ export const guideDocumentation = {
             "expires_in tính bằng giây; hiện là 2.592.000 giây (30 ngày).",
           "token_type là Bearer. Ride request chỉ cần access token, không gửi kèm Client secret.",
         ],
-        rows: [
-          ["Production", "/v1/public/token · scope ride.trips"],
-          ["Sandbox", "/v1/sandbox/token · scope sandbox.ride.trips"],
-        ],
+        rows: [["Sandbox", "/v1/sandbox/token · scope sandbox.ride.trips"]],
       },
       {
         id: "auth-errors",
@@ -254,7 +251,7 @@ export const guideDocumentation = {
           ["order_status_changed", "data có order_id và status của chuyến."],
           ["point_status_changed", "data có order_id, point_id và point_status của điểm."],
           ["event_time", "Thời điểm tạo event, Unix giây dạng số."],
-          ["resource_href", "URL chi tiết chuyến trong môi trường tương ứng."],
+          ["resource_href", "URL chi tiết chuyến trong Sandbox."],
         ],
       },
       {
@@ -274,7 +271,7 @@ export const guideDocumentation = {
           "Dùng WEBHOOK_AUTHORIZATION để đặt Authorization trực tiếp, hoặc WEBHOOK_TOKEN_URL " +
             "để lấy Bearer token bằng WEBHOOK_CLIENT_ID và WEBHOOK_CLIENT_SECRET.",
           "WEBHOOK_SCOPE là tùy chọn; token được dùng lại tới hết expires_in. " +
-            "X-Environment có giá trị production hoặc sandbox.",
+            "X-Environment có giá trị sandbox.",
         ],
       },
     ],

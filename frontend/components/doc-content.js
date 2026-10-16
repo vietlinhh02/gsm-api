@@ -216,7 +216,7 @@ export function Overview() {
       title="API đặt xe"
       sections={[
         { id: "start", title: "Bắt đầu tích hợp" },
-        { id: "environments", title: "Chọn môi trường" },
+        { id: "environments", title: "Môi trường test" },
         { id: "endpoints", title: "Danh sách endpoint" },
       ]}
     >
@@ -270,7 +270,7 @@ export function Overview() {
       <VStack as="section" id="endpoints" gap={3}>
         <Heading level={2}>Danh sách endpoint</Heading>
         <Text as="p" color="secondary">
-          Production và Sandbox dùng cùng cấu trúc request và response.
+          Tất cả endpoint test dùng chung base URL /v1/sandbox.
         </Text>
         <Table
           data={endpoints.map(({ id, method, path, title }) => ({ id, method, path, title }))}
@@ -331,14 +331,13 @@ function QuickStart() {
 function EnvironmentOverview() {
   return (
     <VStack gap={3} as="section" id="environments">
-      <Heading level={2}>Chọn môi trường</Heading>
+      <Heading level={2}>Môi trường test</Heading>
       <Text as="p" color="secondary">
-        Production và Sandbox lưu chuyến riêng, dùng token có scope khác nhau. Cả hai môi trường
-        trong ứng dụng này đều mô phỏng chuyến xe; giá là bảng tham khảo Hà Nội tháng 3/2025.
+        Ứng dụng chỉ dùng Sandbox để mô phỏng chuyến xe và tài xế. Giá là bảng tham khảo Hà Nội
+        tháng 3/2025.
       </Text>
       <DescriptionTable
         rows={[
-          ["Production", "Ride endpoint: /v1/ride/ · Token: /v1/public/token · Scope: ride.trips"],
           ["Sandbox", "Ride endpoint: /v1/sandbox/ride/ · Token: /v1/sandbox/token"],
           [
             "Sandbox scope",

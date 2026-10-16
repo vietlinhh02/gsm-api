@@ -20,13 +20,13 @@ import (
 
 func TestRideAPIEndToEnd(t *testing.T) {
 	h := newIntegrationHarness(t)
-	productionToken := getToken(t, h.server.URL, h.clientID, h.secret, false)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	pickup, dropoff := testPoints()
-	orderID := runTripFlow(t, h.server.URL, productionToken, pickup, dropoff)
-	runHourFlow(t, h.server.URL, productionToken, pickup)
-	runGreenConnectFlow(t, h.server.URL, productionToken, pickup, dropoff)
-	runGeocodeFlow(t, h.server.URL, productionToken)
-	runSandboxFlow(t, h, productionToken, orderID, pickup, dropoff)
+	runTripFlow(t, h.server.URL, token, pickup, dropoff)
+	runHourFlow(t, h.server.URL, token, pickup)
+	runGreenConnectFlow(t, h.server.URL, token, pickup, dropoff)
+	runGeocodeFlow(t, h.server.URL, token)
+	runSandboxFlow(t, h, pickup, dropoff)
 }
 
 type integrationHarness struct {
@@ -163,7 +163,7 @@ func runTripFlow(t *testing.T, baseURL, token string, pickup, dropoff Point) str
 		t,
 		baseURL,
 		http.MethodPost,
-		"/v1/ride/estimate/order",
+		"/v1/sandbox/ride/estimate/order",
 		token,
 		estimateBody,
 		http.StatusOK,
@@ -180,13 +180,13 @@ func runTripFlow(t *testing.T, baseURL, token string, pickup, dropoff Point) str
 		t,
 		baseURL,
 		http.MethodPost,
-		"/v1/ride/create-order",
+		"/v1/sandbox/ride/create-order",
 		token,
 		createBody,
 		http.StatusOK,
 	)
 	orderID := created["data"].(map[string]any)["id"].(string)
-	path := "/v1/ride/orders/" + orderID + "?extra_components=driver,path"
+	path := "/v1/sandbox/ride/orders/" + orderID + "?extra_components=driver,path"
 	order := requestJSON(
 		t, baseURL, http.MethodGet, path, token, nil, http.StatusOK,
 	)["data"].(map[string]any)
@@ -197,7 +197,7 @@ func runTripFlow(t *testing.T, baseURL, token string, pickup, dropoff Point) str
 		t,
 		baseURL,
 		http.MethodGet,
-		"/v1/ride/list-user-orders",
+		"/v1/sandbox/ride/list-user-orders",
 		token,
 		nil,
 		http.StatusOK,
@@ -209,7 +209,7 @@ func runTripFlow(t *testing.T, baseURL, token string, pickup, dropoff Point) str
 		t,
 		baseURL,
 		http.MethodPost,
-		"/v1/ride/cancel-order",
+		"/v1/sandbox/ride/cancel-order",
 		token,
 		map[string]any{"order_id": orderID, "cancel_code": 9000, "cancel_message": "test"},
 		http.StatusOK,
@@ -218,7 +218,7 @@ func runTripFlow(t *testing.T, baseURL, token string, pickup, dropoff Point) str
 		t,
 		baseURL,
 		http.MethodPost,
-		"/v1/ride/cancel-order",
+		"/v1/sandbox/ride/cancel-order",
 		token,
 		map[string]any{"order_id": orderID, "cancel_code": 9000, "cancel_message": "test"},
 		http.StatusConflict,
@@ -237,7 +237,7 @@ func runHourFlow(t *testing.T, baseURL, token string, pickup Point) {
 		t,
 		baseURL,
 		http.MethodPost,
-		"/v1/ride/estimate/hour-order",
+		"/v1/sandbox/ride/estimate/hour-order",
 		token,
 		body,
 		http.StatusOK,
@@ -252,7 +252,7 @@ func runHourFlow(t *testing.T, baseURL, token string, pickup Point) {
 		"fee_id":         feeID,
 		"points":         []Point{pickup},
 	}
-	requestJSON(t, baseURL, http.MethodPost, "/v1/ride/create-order", token, create, http.StatusOK)
+	requestJSON(t, baseURL, http.MethodPost, "/v1/sandbox/ride/create-order", token, create, http.StatusOK)
 }
 
 func runGreenConnectFlow(t *testing.T, baseURL, token string, pickup, dropoff Point) {
@@ -267,7 +267,7 @@ func runGreenConnectFlow(t *testing.T, baseURL, token string, pickup, dropoff Po
 		t,
 		baseURL,
 		http.MethodPost,
-		"/v1/ride/estimate/order",
+		"/v1/sandbox/ride/estimate/order",
 		token,
 		body,
 		http.StatusOK,
@@ -283,7 +283,7 @@ func runGreenConnectFlow(t *testing.T, baseURL, token string, pickup, dropoff Po
 		"partner_payment_method": "B2B", "fee_id": item["estimate_info"].(map[string]any)["fee_id"],
 		"partner_trip_id": "TEST-TRIP-1", "points": points,
 	}
-	requestJSON(t, baseURL, http.MethodPost, "/v1/ride/create-order", token, create, http.StatusOK)
+	requestJSON(t, baseURL, http.MethodPost, "/v1/sandbox/ride/create-order", token, create, http.StatusOK)
 }
 
 func runGeocodeFlow(t *testing.T, baseURL, token string) {
@@ -292,7 +292,7 @@ func runGeocodeFlow(t *testing.T, baseURL, token string) {
 		t,
 		baseURL,
 		http.MethodGet,
-		"/v1/place/geocode?text=Test+Road",
+		"/v1/sandbox/place/geocode?text=Test+Road",
 		token,
 		nil,
 		http.StatusOK,
@@ -304,7 +304,7 @@ func runGeocodeFlow(t *testing.T, baseURL, token string) {
 		t,
 		baseURL,
 		http.MethodGet,
-		"/v1/place/geocode?reverse=true&lat=10.7&lng=106.6",
+		"/v1/sandbox/place/geocode?reverse=true&lat=10.7&lng=106.6",
 		token,
 		nil,
 		http.StatusOK,
@@ -317,23 +317,10 @@ func runGeocodeFlow(t *testing.T, baseURL, token string) {
 func runSandboxFlow(
 	t *testing.T,
 	h *integrationHarness,
-	productionToken, productionOrderID string,
 	pickup, dropoff Point,
 ) {
 	t.Helper()
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
-	requestJSON(
-		t,
-		h.server.URL,
-		http.MethodGet,
-		"/v1/sandbox/ride/orders/"+productionOrderID,
-		token,
-		nil,
-		http.StatusNotFound,
-	)
-	if productionToken == token {
-		t.Fatal("production and sandbox tokens should be distinct")
-	}
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	body := map[string]any{
 		"service_ids":    []any{map[string]any{"id": 2179}},
 		"order_time":     0,
@@ -429,15 +416,7 @@ func runSandboxFlow(
 		map[string]any{"order_id": orderID, "cancel_code": 9000, "cancel_message": "too late"},
 		http.StatusConflict,
 	)
-	requestJSON(
-		t,
-		h.server.URL,
-		http.MethodGet,
-		"/v1/ride/orders/"+orderID,
-		productionToken,
-		nil,
-		http.StatusNotFound,
-	)
+
 }
 
 func setupSandboxWebhook(t *testing.T, h *integrationHarness) <-chan http.Header {
@@ -460,12 +439,9 @@ func setupSandboxWebhook(t *testing.T, h *integrationHarness) <-chan http.Header
 	return received
 }
 
-func getToken(t *testing.T, baseURL, clientID, secret string, sandbox bool) string {
+func getToken(t *testing.T, baseURL, clientID, secret string) string {
 	t.Helper()
-	path, scope := "/v1/public/token", "ride.trips"
-	if sandbox {
-		path, scope = "/v1/sandbox/token", "sandbox.ride.trips"
-	}
+	path, scope := "/v1/sandbox/token", "sandbox.ride.trips"
 	form := url.Values{
 		"client_id":     {clientID},
 		"client_secret": {secret},

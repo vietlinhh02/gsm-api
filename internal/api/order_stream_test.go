@@ -51,7 +51,7 @@ func readStreamOrder(t *testing.T, reader *bufio.Reader) map[string]any {
 
 func TestOrderStreamPushAndReconnect(t *testing.T) {
 	h := newIntegrationHarness(t)
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	id := createAutomaticSandboxTrip(t, h, token)
 	response := openOrderStream(t, h, token, id)
 	if response.StatusCode != http.StatusOK ||
@@ -108,8 +108,13 @@ func TestOrderStreamPushAndReconnect(t *testing.T) {
 
 func TestOrderStreamAuthorization(t *testing.T) {
 	h := newIntegrationHarness(t)
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
-	production := getToken(t, h.server.URL, h.clientID, h.secret, false)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
+	legacy := "legacy-production-token"
+	if _, err := h.service.Store.DB.Exec(`
+ INSERT INTO access_tokens(token_hash,client_id,scope,expires_at) VALUES($1,$2,$3,$4)
+ `, hashToken(legacy), h.clientID, "ride.trips", time.Now().Add(time.Hour).Unix()); err != nil {
+		t.Fatal(err)
+	}
 	id := createAutomaticSandboxTrip(t, h, token)
 	foreign := "foreign-stream-token"
 	if _, err := h.service.Store.DB.Exec(`
@@ -123,7 +128,7 @@ func TestOrderStreamAuthorization(t *testing.T) {
 		id    string
 		code  int
 	}{
-		{"", id, 401}, {"invalid", id, 401}, {production, id, 401}, {foreign, id, 404},
+		{"", id, 401}, {"invalid", id, 401}, {legacy, id, 401}, {foreign, id, 404},
 		{token, "missing-order", 404},
 	} {
 		response := openOrderStream(t, h, item.token, item.id)
@@ -164,7 +169,7 @@ func TestOrderHubIsolationAndCleanup(t *testing.T) {
 
 func TestOrderStreamCancellationUnsubscribes(t *testing.T) {
 	h := newIntegrationHarness(t)
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	id := createAutomaticSandboxTrip(t, h, token)
 	response := openOrderStream(t, h, token, id)
 	readStreamOrder(t, bufio.NewReader(response.Body))

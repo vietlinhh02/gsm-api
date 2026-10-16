@@ -3,13 +3,11 @@ import { endpoints } from "#lib/catalog.mjs";
 function allowedMethod(pathname) {
   if (/^v1\/sandbox\/ride\/orders\/[^/]+\/events$/.test(pathname)) return "GET";
   if (pathname === "healthz") return "GET";
-  if (pathname === "v1/ride/update-status") return undefined;
-  if (["v1/public/token", "v1/sandbox/token"].includes(pathname)) return "POST";
-  const normalized = "/" + pathname.replace("v1/sandbox/", "v1/");
-  if (/^\/v1\/ride\/orders\/[^/]+$/.test(normalized)) return "GET";
-  return endpoints.find(
-    (endpoint) => endpoint.path.replace("/v1/sandbox/", "/v1/").split("?")[0] === normalized,
-  )?.method;
+  if (!pathname.startsWith("v1/sandbox/")) return undefined;
+  if (pathname === "v1/sandbox/token") return "POST";
+  const normalized = "/" + pathname;
+  if (/^\/v1\/sandbox\/ride\/orders\/[^/]+$/.test(normalized)) return "GET";
+  return endpoints.find((endpoint) => endpoint.path.split("?")[0] === normalized)?.method;
 }
 
 function errorResponse(status, message) {
@@ -70,7 +68,7 @@ function serverCredentials(options) {
 async function upstreamBody(request, pathname, options) {
   if (request.method === "GET") return undefined;
   const body = await request.arrayBuffer();
-  const tokenRequest = ["v1/public/token", "v1/sandbox/token"].includes(pathname);
+  const tokenRequest = pathname === "v1/sandbox/token";
   if (!tokenRequest) return body;
   const form = new URLSearchParams(new TextDecoder().decode(body));
   const { clientId, clientSecret } = serverCredentials(options);

@@ -7,7 +7,7 @@ import (
 
 func TestHanoiQuotePersistence(t *testing.T) {
 	h := newIntegrationHarness(t)
-	token := getToken(t, h.server.URL, h.clientID, h.secret, true)
+	token := getToken(t, h.server.URL, h.clientID, h.secret)
 	pickup, dropoff := testPoints()
 	for _, payment := range []string{"cash", "partner_pay"} {
 		response := requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/estimate/order",

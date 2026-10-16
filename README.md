@@ -39,28 +39,28 @@ Open the [hosted guide and playground](https://gsm-api-eight.vercel.app). See
 
 ## Authentication
 
-Get a production-scope token:
+Get a Sandbox token:
 
 ```sh
-curl -X POST http://localhost:8081/v1/public/token \
+curl -X POST http://localhost:8081/v1/sandbox/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   --data-urlencode 'client_id=local-client' \
   --data-urlencode 'client_secret=local-secret' \
   --data-urlencode 'grant_type=client_credentials' \
-  --data-urlencode 'scope=ride.trips'
+  --data-urlencode 'scope=sandbox.ride.trips'
 ```
 
-Use `/v1/sandbox/token` and `sandbox.ride.trips` for sandbox routes. Pass the returned token as `Authorization: Bearer <token>`.
+Pass the returned token as `Authorization: Bearer <token>`.
 
 ## Implemented routes
 
-Production rides routes are under `/v1/ride`: `list-available-services`, `estimate/order`, `estimate/hour-order`, `create-order`, `orders/{id}`, `list-user-orders`, and `cancel-order`. Geocoding is `/v1/place/geocode`. Sandbox equivalents are under `/v1/sandbox`, with `/v1/sandbox/ride/update-status` for simulated order/point transitions.
+Only Sandbox is exposed under `/v1/sandbox`: token exchange at `/token`, ride APIs under `/ride`, geocoding at `/place/geocode`, and simulated transitions at `/ride/update-status`. Production routes are not registered.
 
 `GET /list-user-orders` returns this client's stored orders. The supplied docs did not define its filter parameter names, so no undocumented filters are implemented. Service catalog is local seed data. RIDE-HOUR remains a demo at 175,000 VND/hour, less the supplied discount.
 
 ## Hanoi playground and simulated fares
 
-Open `http://localhost:3000/playground` and choose **Dùng Sandbox**.
+Open `http://localhost:3000/playground`; Sandbox is the only test environment.
 Select a Hanoi route preset, click the OpenStreetMap map to choose pickup/dropoff, or explicitly
 search an address. Compare car/bike fares, choose a vehicle, then book. Tokens are obtained
 automatically using the editable local credentials. Sandbox trips automatically assign a driver, simulate pickup/dropoff, start and complete.
@@ -125,7 +125,7 @@ stop advancing. Orders created before this feature remain manual. Status updates
 events commit atomically. Production orders do not advance automatically.
 
 Set `WEBHOOK_URL` to your HTTP callback receiver to enable real outbound callbacks.
-An empty URL disables callback delivery; no receiver URL is fabricated. Set `WEBHOOK_SIGNING_KEY` to add `X-VSF-Signature` (HMAC-SHA256 over the raw JSON body). Deliveries are persisted and retried up to seven times; delivery is asynchronous. Sandbox does not emit the production-only `driver.location.updated` event.
+An empty URL disables callback delivery; no receiver URL is fabricated. Set `WEBHOOK_SIGNING_KEY` to add `X-VSF-Signature` (HMAC-SHA256 over the raw JSON body). Deliveries are persisted and retried up to seven times; delivery is asynchronous. Sandbox does not emit `driver.location.updated` events.
 
 ## Verification
 

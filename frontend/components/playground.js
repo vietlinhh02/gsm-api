@@ -94,9 +94,10 @@ function Authentication({ model }) {
 
 function RequestPanel({ model }) {
   const { state, endpoint, patch, selectEndpoint, send } = model;
-  const options = endpoints
-    .filter((item) => !item.sandboxOnly || state.environment === "sandbox")
-    .map((item) => ({ value: item.id, label: item.method + " · " + item.title }));
+  const options = endpoints.map((item) => ({
+    value: item.id,
+    label: item.method + " · " + item.title,
+  }));
   return (
     <Card padding={6} className="request-panel">
       <VStack gap={5}>
@@ -258,17 +259,9 @@ export default function Playground({ endpointId }) {
             Xem giá, đặt xe và theo dõi chuyến đi.
           </Text>
         </VStack>
-        <Selector
-          label="Môi trường"
-          startIcon={<SiteIcon name={model.state.environment === "sandbox" ? "flask" : "plugs"} />}
-          value={model.state.environment}
-          options={[
-            { value: "production", label: "Production" },
-            { value: "sandbox", label: "Sandbox" },
-          ]}
-          onChange={model.selectEnvironment}
-          isDisabled={model.state.busy}
-        />
+        <Text type="supporting" color="secondary">
+          Sandbox · Môi trường test
+        </Text>
       </HStack>
       <TabList
         value={tab}
@@ -298,7 +291,7 @@ export default function Playground({ endpointId }) {
         />
       </TabList>
       <section id="playground-ride" role="tabpanel" aria-label="Đặt chuyến" hidden={tab !== "ride"}>
-        <QuickRide key={model.state.environment} model={model} />
+        <QuickRide model={model} />
       </section>
       <section id="playground-api" role="tabpanel" aria-label="API & JSON" hidden={tab !== "api"}>
         <Grid columns={2} gap={6} align="start" className="playground-grid">
