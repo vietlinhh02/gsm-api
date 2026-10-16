@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useClipboard } from "@astryxdesign/core/hooks";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { Card } from "@astryxdesign/core/Card";
@@ -18,6 +19,26 @@ import { usePlayground } from "@/components/use-playground";
 import QuickRide from "@/components/quick-ride";
 import { apiErrorMessage } from "#lib/http.mjs";
 import SiteIcon from "@/components/site-icon";
+
+function CopyToken({ token, busy }) {
+  const { copy, isCopied } = useClipboard({ announce: "Đã sao chép token" });
+  const [failed, setFailed] = useState(false);
+  return (
+    <VStack gap={2}>
+      <Button
+        label={isCopied ? "Đã sao chép token" : "Sao chép token"}
+        variant="secondary"
+        isDisabled={!token || busy}
+        onClick={async () => setFailed(!(await copy(token)))}
+      />
+      {failed && (
+        <Text as="p" role="alert">
+          Không sao chép được. Chọn nội dung ô Bearer token rồi sao chép thủ công.
+        </Text>
+      )}
+    </VStack>
+  );
+}
 
 function Authentication({ model }) {
   const { state, patch, authenticate } = model;
@@ -66,6 +87,7 @@ function Authentication({ model }) {
         onChange={(value) => patch({ token: value })}
         isDisabled={state.busy}
       />
+      <CopyToken key={state.token} token={state.token} busy={state.busy} />
     </VStack>
   );
 }
