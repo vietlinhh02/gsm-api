@@ -1,79 +1,81 @@
-# Backend deployment
+# Deployment
 
-GitHub Actions tests the Go API against a disposable PostgreSQL database, builds the backend
-image, publishes it to `ghcr.io/vietlinhh02/gsm-api`, then deploys the immutable image digest.
-Pushes to `master` and manual runs of `backend.yml` use the same pipeline.
+The backend and PostgreSQL are managed by Coolify in the **GSM API / production** project.
+The frontend is deployed separately with Vercel CLI.
 
-The frontend source is included in this repository but is not deployed by this workflow.
-The API runs as a non-root user in a read-only container. PostgreSQL uses its own persistent
-volume and is not exposed on a host port. Both containers have memory, CPU and log limits
-for the current small VPS. SSE uses one API instance; do not scale API replicas without a
-shared notification channel.
+- Frontend: https://gsm-api-eight.vercel.app
+- Backend: https://gsm-api.103.176.113.163.sslip.io
+- Coolify project: http://103.176.113.163:8000/project/bssz9vpwhtx8qst1pib26xea
+- Backend application: `jsqliuzreybxzqv9vjfcdilc` (`gsm-api-backend`).
+- Managed PostgreSQL: `vvnm9dnlurb8dahdflt1niyh` (`gsm-api-postgres`).
 
-## Server files and credentials
+The backend hostname uses sslip.io DNS and a certificate managed by the Coolify proxy.
+A custom domain can replace it later. Vercel's server-side `API_ORIGIN` points to the HTTPS
+backend; browsers call the same-origin `/api/backend` proxy, including for SSE.
 
-The server keeps these root-owned files in `/opt/gsm-api`:
+## Backend pipeline
 
-- `compose.yml` and `deploy.sh`: reviewed copies from this directory.
-- `.env`: runtime credentials and database URL; mode `0600`, never committed to Git.
-- `image.env`: the most recently healthy `API_IMAGE` digest.
+Pushes to `master` and manual runs of `backend.yml` run formatting, static analysis and
+PostgreSQL integration tests, then build and publish an image to `ghcr.io/vietlinhh02/gsm-api`.
+GitHub Actions passes the immutable image digest to `deploy/coolify-deploy.sh` over SSH.
+The script updates this Coolify application through the local API, requests deployment,
+waits for its result and checks HTTPS health. Coolify owns container creation, routing,
+health checks, logs and deployment history. No image is built on the VPS.
 
-Use `deploy/runtime.env.example` as a schema for `.env`. Generate unique passwords rather
-than using the local development defaults. Preserve `POSTGRES_PASSWORD` after initializing
-the volume; changing just the environment does not rotate an existing PostgreSQL password.
-`DATABASE_URL` must use the same password. Back up the database before schema changes.
+Repository variable: `DEPLOY_HOST` is `103.176.113.163`.
+Repository secrets: `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` hold the dedicated deploy key
+and verified SSH host-key record. The public key is restricted to
+`command="/opt/gsm-api/coolify-deploy.sh",restrict` in `/root/.ssh/authorized_keys`.
+It cannot open an interactive shell, forward ports or select another application/image repository.
 
-The current endpoint is `http://103.176.113.163:8082`; `/healthz` is unauthenticated.
-A domain and HTTPS proxy can be added later. Use HTTPS before sending real credentials or
-passenger data over a public network; SSH tunnelling is available for private testing now:
+Root-owned server files, outside Git:
+
+- `/opt/gsm-api/coolify-deploy.sh`: deployed copy of the bridge in this directory.
+- `/opt/gsm-api/coolify-api.headers`: mode `0600`, a team-bound Coolify integration token.
+- `/opt/gsm-api/backups/`: database and configuration backups from the migration.
+
+The integration token has `read`, `write` and `deploy` permissions, expires after 365 days,
+and is used only over loopback HTTP on the VPS. It has no `read:sensitive` or `root` ability.
+Rotate it in Coolify before expiration and replace the private header file. Synchronize
+bridge changes through an administrator SSH session; the restricted deploy key cannot edit it.
+
+## Coolify runtime settings
+
+The application uses port `8080`, `/healthz`, a `128m` memory limit and `0.5` CPU.
+Its image runs as UID `65532`; custom Docker options drop all capabilities.
+There are no public host port mappings. Keep one API instance because SSE notifications
+are currently process-local. Preserve the managed database's hostname in `DATABASE_URL`.
+The application environment schema is in `runtime.env.example`; values belong in Coolify,
+never in Git or frontend JavaScript.
+
+PostgreSQL uses the pinned PostgreSQL 18 image, a `160m` memory limit, `0.5` CPU,
+`shared_buffers=16MB`, `max_connections=30`, `work_mem=1MB` and
+`maintenance_work_mem=16MB`. It is private on the Coolify network.
+
+The migration preserved the stored orders, quotes and access tokens. The original standalone
+volume `gsm-api_postgres_data` and the pre-migration dump are retained as backups; the active
+application uses the Coolify-managed database. The former standalone containers and deployment
+script are retired. Do not delete the managed database or its volume when updating the API.
+Use Coolify's backup configuration before production schema changes. Application image rollback
+does not reverse database schema migrations.
+
+## Frontend with Vercel CLI
+
+From `frontend/`:
 
 ```sh
-ssh -L 8082:127.0.0.1:8082 root@103.176.113.163
+vercel link --yes --project gsm-api --scope peanuttt666s-7352s-projects
+vercel env add API_ORIGIN production --value https://gsm-api.103.176.113.163.sslip.io --yes
+vercel deploy --prod --yes --scope peanuttt666s-7352s-projects
 ```
 
-The existing Coolify installation and its applications are independent of this Compose project.
-No Coolify services or volumes are modified by deployment.
+`vercel.json` runs the project's pnpm build, including preparation of the MapLibre worker.
+The project uses Node.js 22. The proxy route allows up to 300 seconds for streaming requests;
+SSE clients reconnect if a function lifetime ends. Set client credentials in the playground's
+**Xác thực** tab; they are not embedded in the deployed JavaScript.
 
-## GitHub configuration
-
-Repository variable: `DEPLOY_HOST` is the server IP.
-Repository secrets: `DEPLOY_SSH_KEY` is the dedicated Ed25519 private key and
-`DEPLOY_KNOWN_HOSTS` is the verified SSH host-key record.
-
-The matching public key in `/root/.ssh/authorized_keys` is restricted to
-`command="/opt/gsm-api/deploy.sh",restrict`. It cannot open an interactive shell or forward
-ports. The deploy script only accepts an immutable image digest from this repository.
-The workflow passes its temporary `GITHUB_TOKEN` over encrypted SSH standard input for
-GHCR pull access. Registry credentials are deleted after the run, so a long-lived registry
-personal access token is not needed. Runtime application credentials stay on the server.
-
-Changes to `compose.yml` or `deploy.sh` require an administrator to synchronize those files
-explicitly before running the workflow; the restricted deploy key cannot replace them.
-
-## Operations
-
-Run from `/opt/gsm-api` as an administrator:
-
-```sh
-docker compose --project-name gsm-api --env-file .env --env-file image.env -f compose.yml ps
-docker compose --project-name gsm-api --env-file .env --env-file image.env -f compose.yml logs --tail=100 api
-```
-
-To deploy the current GitHub revision again:
+To deploy the current backend revision again:
 
 ```sh
 gh workflow run backend.yml --repo vietlinhh02/gsm-api --ref master
-```
-
-The script serializes deployments, checks container health, and records the new digest only
-on success. If an application health check fails and a previous image exists, it restores
-that image. Image rollback does not reverse database schema changes. Never delete the
-`gsm-api_postgres_data` volume when updating the app.
-
-For a database backup:
-
-```sh
-umask 077
-docker compose --project-name gsm-api --env-file .env --env-file image.env -f compose.yml \
-  exec -T postgres pg_dump -U gsm_api gsm_api > gsm-api-backup.sql
 ```

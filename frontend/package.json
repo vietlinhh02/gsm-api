@@ -31,5 +31,8 @@
     "@playwright/test": "1.64.0",
     "oxfmt": "0.73.0",
     "oxlint": "1.87.0"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }

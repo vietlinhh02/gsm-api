@@ -5,5 +5,7 @@ async function proxy(request, context) {
   return forwardRequest(request, path);
 }
 
+export const maxDuration = 300;
+
 export const GET = proxy;
 export const POST = proxy;

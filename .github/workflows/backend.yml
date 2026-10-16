@@ -74,14 +74,13 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Deploy immutable image over restricted SSH
+      - name: Deploy immutable image through Coolify
         if: vars.DEPLOY_HOST != ''
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           API_IMAGE: ghcr.io/${{ github.repository }}@${{ steps.image.outputs.digest }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           umask 077
@@ -90,7 +89,7 @@ jobs:
           trap 'rm -f -- "$key_file" "$hosts_file"' EXIT
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$key_file"
           printf '%s\n' "$SSH_KNOWN_HOSTS" > "$hosts_file"
-          printf '%s\n%s\n' "$API_IMAGE" "$GHCR_TOKEN" |
+          printf '%s\n' "$API_IMAGE" |
             ssh -T -i "$key_file" -o IdentitiesOnly=yes -o BatchMode=yes \
               -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts_file" \
               -o ConnectTimeout=15 -o ServerAliveInterval=15 "root@$DEPLOY_HOST"

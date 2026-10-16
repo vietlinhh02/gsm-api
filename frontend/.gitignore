@@ -5,3 +5,4 @@ test-results/
 playwright-report/
 .env.local
 public/maplibre/
+.vercel
