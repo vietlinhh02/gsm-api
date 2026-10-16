@@ -122,7 +122,7 @@ guarantee. Use an appropriate hosted provider or self-hosted OSM services for pr
 New sandbox orders run automatically even without a webhook URL. The worker persists its
 progress in PostgreSQL and resumes pending trips after restart. Cancelled and completed trips
 stop advancing. Orders created before this feature remain manual. Status updates and webhook
-events commit atomically. Production orders do not advance automatically.
+events commit atomically.
 
 Set `WEBHOOK_URL` to your HTTP callback receiver to enable real outbound callbacks.
 An empty URL disables callback delivery; no receiver URL is fabricated. Set `WEBHOOK_SIGNING_KEY` to add `X-VSF-Signature` (HMAC-SHA256 over the raw JSON body). Deliveries are persisted and retried up to seven times; delivery is asynchronous. Sandbox does not emit `driver.location.updated` events.
