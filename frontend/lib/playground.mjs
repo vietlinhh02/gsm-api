@@ -23,6 +23,7 @@ export function initialState(endpointId = "services") {
     result: null,
     error: "",
     busy: false,
+    webhookInbox: null,
   };
 }
 

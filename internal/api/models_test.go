@@ -123,13 +123,6 @@ func TestWebhookSignatureUsesHMACSHA256Hex(t *testing.T) {
 	}
 }
 
-func TestWebhookDeliveryWithoutURLIsNoop(t *testing.T) {
-	service := &API{}
-	if err := service.deliverOneWebhook(context.Background()); err != nil {
-		t.Fatalf("webhook delivery without a URL should be skipped: %v", err)
-	}
-}
-
 func TestMapPlaceMapsOSMAddressAndRejectsMalformedCoordinates(t *testing.T) {
 	place := nominatimPlace{
 		OSMType: "way", OSMID: 1234, Lat: "10.7", Lon: "106.6", DisplayName: "Road, Ho Chi Minh City",

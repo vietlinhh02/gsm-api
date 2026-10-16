@@ -81,11 +81,11 @@ export const endpointDocumentation = {
       "Lấy fee_id từ báo giá cùng Client ID trước khi tạo chuyến.",
       "Giữ nguyên service, order_time, payment_method, tọa độ, tên khách và điện thoại đã báo giá.",
       "address và short_address cũng được đối chiếu. Nên điền đầy đủ ngay khi lấy báo giá.",
-      "Lưu data.id để tra cứu, hủy chuyến hoặc đối chiếu webhook. Mỗi lần gọi tạo một chuyến mới.",
+      "Lưu data.id để tra cứu, hủy chuyến hoặc đối chiếu webhook. Gửi lại cùng fee_id và nội dung sẽ trả chuyến đã tạo.",
     ],
     responseFields: [
       ["data.id", "Order ID của chuyến vừa tạo."],
-      ["data.status", "Trạng thái ban đầu FINDING; chưa có tài xế được gán tự động."],
+      ["data.status", "FINDING, SCHEDULING hoặc WAITING_FOR_PAYMENT tùy lịch và thanh toán."],
       ["data.path[].id", "Point ID để cập nhật điểm dừng trong Sandbox."],
       ["data.path[].status", "Trạng thái ban đầu CREATED của mỗi điểm."],
       ["data.order_time", "Timestamp Unix dạng chuỗi."],
@@ -239,6 +239,35 @@ export const guideDocumentation = {
   webhooks: {
     sections: [
       {
+        id: "inbox",
+        title: "Tự tạo link nhận webhook",
+        paragraphs: [
+          "Mở Playground → Webhook → Tạo link webhook. Sao chép URL để hệ thống khác gửi POST, " +
+            "hoặc bấm Gửi event thử. Không cần cấu hình WEBHOOK_URL để dùng hộp thư.",
+          "Chuyến mới tạo trong Playground tự gắn hộp thư đang chọn. API caller gửi webhook_inbox_id " +
+            "trong create-order. Hộp thư thuộc client đã tạo nó; link cũ vẫn nhận được request sau khi tạo link mới.",
+          "Hộp thư lưu 100 request gần nhất, tự cập nhật mỗi 3 giây khi mở tab. Bấm Xem để đọc body và headers. " +
+            "Link được khôi phục trong cùng tab trình duyệt sau khi tải lại trang.",
+          "Mỗi body tối đa 256 KiB, chấp nhận JSON lỗi hoặc văn bản để kiểm tra dữ liệu thực nhận. " +
+            "Authorization và Cookie không được lưu; tối đa 64 header, mỗi giá trị giữ 1024 byte đầu.",
+        ],
+        rows: [
+          ["POST /v1/sandbox/webhook-inboxes", "Bearer token; trả data.id và data.receive_path."],
+          [
+            "POST /webhook-inbox/{token}",
+            "URL nhận công khai có token ngẫu nhiên; trả 200 sau khi lưu.",
+          ],
+          [
+            "GET /v1/sandbox/webhook-inboxes/{id}",
+            "Bearer token; thông tin hộp thư và danh sách request.",
+          ],
+          [
+            "GET /v1/sandbox/webhook-inboxes/{id}/receipts/{receipt}",
+            "Bearer token; body và headers đầy đủ.",
+          ],
+        ],
+      },
+      {
         id: "delivery",
         title: "Nhận và xác nhận event",
         paragraphs: [
@@ -248,7 +277,15 @@ export const guideDocumentation = {
             "Lưu event_id để xử lý idempotency và trả 200 cho event đã xử lý.",
         ],
         rows: [
-          ["order_status_changed", "data có order_id và status của chuyến."],
+          [
+            "order_status_changed",
+            "data có order_id, status và snapshot simulation khi phát sinh.",
+          ],
+          [
+            "data.simulation",
+            "scenario, attempts, event và reason; phân biệt tìm lại xe, từ chối và lỗi thanh toán.",
+          ],
+          ["data.driver_id / data.cancel_code", "Tài xế đã gán hoặc mã/lý do khi chuyến bị hủy."],
           ["point_status_changed", "data có order_id, point_id và point_status của điểm."],
           ["event_time", "Thời điểm tạo event, Unix giây dạng số."],
           ["resource_href", "URL chi tiết chuyến trong Sandbox."],

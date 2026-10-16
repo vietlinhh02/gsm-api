@@ -55,10 +55,14 @@ func TestRouteGeometryAndProviderFailures(t *testing.T) {
 }
 
 func TestSimulatedVehicleMatchesTravelMode(t *testing.T) {
-	if vehicle := simulatedVehicle("Motorcycle"); vehicle["type"] != "motorcycle" {
-		t.Fatalf("motorcycle order assigned wrong vehicle: %+v", vehicle)
-	}
-	if vehicle := simulatedVehicle("Car"); vehicle["type"] != "car" {
-		t.Fatalf("car order assigned wrong vehicle: %+v", vehicle)
+	for mode, kind := range map[string]string{"Car": "car", "Motorcycle": "motorcycle"} {
+		payload := map[string]any{}
+		assignDriver(payload, simulatedDriver{ID: "test-driver", Mode: mode,
+			Model: "test-model", Plate: "TEST-01", Distance: 2500})
+		vehicle := payload["vehicle"].(map[string]any)
+		if vehicle["type"] != kind || vehicle["model"] != "test-model" ||
+			vehicle["license_plate"] != "TEST-01" || payload["eta_pickup"] != 6 {
+			t.Fatalf("incorrect fleet vehicle: %+v", payload)
+		}
 	}
 }

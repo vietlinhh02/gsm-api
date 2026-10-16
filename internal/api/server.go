@@ -20,6 +20,7 @@ import (
 )
 
 type Config struct {
+	LocalOrigin             string
 	ClientID                string
 	ClientSecret            string
 	NominatimURL            string
@@ -86,6 +87,11 @@ func (a *API) Handler() http.Handler {
 	mux.Handle("POST /v1/sandbox/ride/cancel-order", a.authorized(a.cancelOrder))
 	mux.Handle("GET /v1/sandbox/place/geocode", a.authorized(a.geocode))
 	mux.Handle("POST /v1/sandbox/ride/update-status", a.authorized(a.updateStatus))
+	mux.Handle("POST /v1/sandbox/webhook-inboxes", a.authorized(a.createWebhookInbox))
+	mux.Handle("GET /v1/sandbox/webhook-inboxes/{id}", a.authorized(a.getWebhookInbox))
+	mux.Handle("GET /v1/sandbox/webhook-inboxes/{id}/receipts/{receipt}",
+		a.authorized(a.getWebhookReceipt))
+	mux.HandleFunc("POST /webhook-inbox/{token}", a.receiveWebhook)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})

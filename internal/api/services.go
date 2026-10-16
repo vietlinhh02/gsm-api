@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -25,6 +27,7 @@ type Service struct {
 	TravelMode            string   `json:"travel_mode"`
 	VehicleModels         []string `json:"vehicle_models"`
 	ETAPickup             int      `json:"eta_pickup"`
+	AvailableVehicles     int      `json:"available_vehicles"`
 	DuringService         bool     `json:"during_service"`
 }
 
@@ -50,88 +53,93 @@ type ServiceAddon struct {
 	AutoApply         bool   `json:"auto_apply"`
 }
 
-func (a *API) listServices(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Pickups      []Point  `json:"pickups"`
-		Dropoffs     []Point  `json:"dropoffs"`
-		ServiceTypes []string `json:"service_types"`
-		OrderTime    int64    `json:"order_time"`
-	}
-	if !a.readJSON(w, r, &request) {
-		return
-	}
+type serviceRequest struct {
+	Pickups      []Point  `json:"pickups"`
+	Dropoffs     []Point  `json:"dropoffs"`
+	ServiceTypes []string `json:"service_types"`
+	OrderTime    int64    `json:"order_time"`
+}
+
+func (request serviceRequest) validate() error {
 	if len(request.Pickups) == 0 {
-		writeError(w, http.StatusBadRequest, 400, "pickups must contain at least one point")
-		return
+		return fmt.Errorf("pickups must contain at least one point")
 	}
 	if request.OrderTime < 0 {
-		writeError(w, http.StatusBadRequest, 400, "order_time must be zero or a positive epoch timestamp")
-		return
+		return fmt.Errorf("order_time must be zero or a positive epoch timestamp")
 	}
 	for _, serviceType := range request.ServiceTypes {
 		if strings.TrimSpace(serviceType) == "" {
-			writeError(w, http.StatusBadRequest, 400, "service_types values must not be empty")
-			return
+			return fmt.Errorf("service_types values must not be empty")
 		}
 	}
 	for _, point := range append(append([]Point{}, request.Pickups...), request.Dropoffs...) {
 		if !validCoordinate(point.Latitude, -90, 90) ||
 			!validCoordinate(point.Longitude, -180, 180) {
-			writeError(
-				w,
-				http.StatusBadRequest,
-				400,
-				"pickup/dropoff coordinates must be within latitude/longitude bounds",
-			)
-			return
+			return fmt.Errorf("pickup/dropoff coordinates must be within latitude/longitude bounds")
 		}
 	}
-	rows, err := a.Store.DB.QueryContext(
-		r.Context(),
-		`SELECT id,display_name,service_type,travel_mode,capacity FROM services ORDER BY id`,
-	)
+	return nil
+}
+
+func (a *API) listServices(w http.ResponseWriter, r *http.Request) {
+	var request serviceRequest
+	if !a.readJSON(w, r, &request) {
+		return
+	}
+	if err := request.validate(); err != nil {
+		writeError(w, http.StatusBadRequest, 400, err.Error())
+		return
+	}
+	drivers, err := nearbyDrivers(r.Context(), a.Store.DB,
+		requestEnvironment(r.Context()), request.Pickups[0])
+	if err != nil {
+		a.dbError(w, "check nearby vehicles", err)
+		return
+	}
+	services, err := a.serviceCatalog(r.Context())
 	if err != nil {
 		a.dbError(w, "list services", err)
 		return
 	}
-	defer rows.Close()
 	data := make([]map[string]any, 0)
-	for rows.Next() {
-		var service Service
-		if err := rows.Scan(
-			&service.ID,
-			&service.DisplayName,
-			&service.ServiceType,
-			&service.TravelMode,
-			&service.Capacity,
-		); err != nil {
-			a.dbError(w, "read service", err)
-			return
+	for _, service := range services {
+		if contains(request.ServiceTypes, service.ServiceType) {
+			data = append(data, serviceResponse(withAvailability(decorateService(service), drivers)))
 		}
-		if !contains(request.ServiceTypes, service.ServiceType) {
-			continue
-		}
-		service = decorateService(service)
-		addons := []ServiceAddon{}
-		if service.ID == 2179 || service.ID == 1903 {
-			addons = []ServiceAddon{quietAddon()}
-		}
-		data = append(data, map[string]any{
-			"service": service,
-			"addons":  addons,
-			"service_hours": []map[string]int{
-				{"day_of_week": 1, "start_time": 0, "end_time": 1440},
-			},
-			"service_group":  map[string]any{"id": 1, "name": service.TravelMode, "ordering": 1},
-			"addon_groups":   []map[string]any{},
-			"cross_services": []any{},
-		})
-	}
-	if err := rows.Err(); err != nil {
-		a.dbError(w, "iterate services", err)
-		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": data, "paginate": 0})
+}
+
+func (a *API) serviceCatalog(ctx context.Context) ([]Service, error) {
+	rows, err := a.Store.DB.QueryContext(ctx,
+		`SELECT id,display_name,service_type,travel_mode,capacity FROM services ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	services := []Service{}
+	for rows.Next() {
+		var service Service
+		if err := rows.Scan(&service.ID, &service.DisplayName, &service.ServiceType,
+			&service.TravelMode, &service.Capacity); err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+	return services, rows.Err()
+}
+
+func serviceResponse(service Service) map[string]any {
+	addons := []ServiceAddon{}
+	if service.TravelMode == "Car" {
+		addons = []ServiceAddon{quietAddon()}
+	}
+	return map[string]any{
+		"service": service, "addons": addons,
+		"service_hours": []map[string]int{{"day_of_week": 1, "start_time": 0, "end_time": 1440}},
+		"service_group": map[string]any{"id": 1, "name": service.TravelMode, "ordering": 1},
+		"addon_groups":  []map[string]any{}, "cross_services": []any{},
+	}
 }
 
 func decorateService(service Service) Service {
@@ -146,12 +154,25 @@ func decorateService(service Service) Service {
 	service.MinDistance = 100
 	service.Enable = true
 	service.MaxPassenger = service.Capacity
-	service.ETAPickup = 5
 	service.DuringService = true
 	service.VehicleModels = []string{}
 	if service.TravelMode == "Car" {
 		service.VehicleModels = []string{"VF5", "VF6", "VF7", "VF8", "VF9"}
 	}
+	return service
+}
+
+func withAvailability(service Service, drivers []simulatedDriver) Service {
+	for _, driver := range drivers {
+		if driver.Mode != service.TravelMode {
+			continue
+		}
+		service.AvailableVehicles++
+		if service.ETAPickup == 0 {
+			service.ETAPickup = pickupMinutes(driver.Distance)
+		}
+	}
+	service.Enable = service.AvailableVehicles > 0
 	return service
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { followOrder } from "#lib/order-stream.mjs";
-import { requestApi, apiErrorMessage } from "#lib/http.mjs";
+import { requestApi, apiErrorMessage, getAccessToken } from "#lib/http.mjs";
 import {
   presetPoints,
   selectedPoint,
@@ -10,29 +10,6 @@ import {
   tripRequest,
   swapPoints,
 } from "#lib/quick-ride.mjs";
-
-async function accessToken(state) {
-  if (state.token) return state.token;
-  const result = await requestApi({
-    path: "/v1/sandbox/token",
-    method: "POST",
-    contentType: "application/x-www-form-urlencoded",
-    body: new URLSearchParams({
-      client_id: state.clientId,
-      client_secret: state.clientSecret,
-      grant_type: "client_credentials",
-      scope: "sandbox.ride.trips",
-    }),
-  });
-  return tokenFromResult(result);
-}
-
-function tokenFromResult(result) {
-  if (result.status !== 200 || !result.data?.access_token) {
-    throw new Error(apiErrorMessage(result));
-  }
-  return result.data.access_token;
-}
 
 function apiCaller(token) {
   const prefix = "/v1/sandbox";
@@ -63,7 +40,7 @@ async function comparePrices(call, form) {
     .filter((service) => ["Car", "Motorcycle"].includes(service.travel_mode));
   const request = tripRequest(form, services);
   const result = await call("/ride/estimate/order", request);
-  return { request, result };
+  return { request, result, services };
 }
 
 export function useQuickRide(model) {
@@ -77,6 +54,7 @@ export function useQuickRide(model) {
     target: 0,
     query: "",
     preset: "center",
+    scenario: "normal",
   });
   const [quote, setQuote] = useState(null);
   const [order, setOrder] = useState(null);
@@ -90,7 +68,7 @@ export function useQuickRide(model) {
     patch({ busy: true, error: "", booking: null });
     setError("");
     try {
-      const token = await accessToken(state);
+      const token = await getAccessToken(state);
       patch({ token });
       const result = await task(apiCaller(token));
       patch({ result, busy: false });
@@ -154,6 +132,8 @@ function rideActions({ model, form, quote, order, setQuote, setOrder, execute })
       execute(async (call) => {
         if (!quote) throw new Error("So sánh giá trước khi đặt chuyến.");
         const booking = selectedBooking(quote.request, quote.result.data, form.serviceId);
+        if (model.state.webhookInbox) booking.webhook_inbox_id = model.state.webhookInbox.id;
+        booking.sandbox_scenario = form.scenario;
         const created = await call("/ride/create-order", booking);
         setOrder(created.data.data);
         setQuote(null);

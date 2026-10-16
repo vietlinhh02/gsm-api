@@ -90,6 +90,7 @@ func newIntegrationHarness(t *testing.T) *integrationHarness {
 	}, log.New(io.Discard, "", 0))
 	service.OSM = NewOSM(provider.URL, provider.URL, service.HTTP)
 	server := httptest.NewServer(service.Handler())
+	service.Config.LocalOrigin = server.URL
 	t.Cleanup(server.Close)
 	return &integrationHarness{
 		server:   server,
@@ -221,7 +222,7 @@ func runTripFlow(t *testing.T, baseURL, token string, pickup, dropoff Point) str
 		"/v1/sandbox/ride/cancel-order",
 		token,
 		map[string]any{"order_id": orderID, "cancel_code": 9000, "cancel_message": "test"},
-		http.StatusConflict,
+		http.StatusOK,
 	)
 	return orderID
 }
@@ -365,20 +366,11 @@ func runSandboxFlow(
 		map[string]any{"update_type": "order", "order_id": orderID, "status": "ASSIGNED"},
 		http.StatusOK,
 	)
-	requestJSON(
-		t,
-		h.server.URL,
-		http.MethodPost,
-		"/v1/sandbox/ride/update-status",
-		token,
-		map[string]any{
-			"update_type":  "point",
-			"order_id":     orderID,
-			"point_id":     pointID,
-			"point_status": "ARRIVED",
-		},
-		http.StatusOK,
-	)
+	for _, status := range []string{"ARRIVING", "NEARED", "ARRIVED"} {
+		requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/update-status", token,
+			map[string]any{"update_type": "point", "order_id": orderID,
+				"point_id": pointID, "point_status": status}, http.StatusOK)
+	}
 	if err := h.service.deliverOneWebhook(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +386,7 @@ func runSandboxFlow(
 		t, h.server.URL, http.MethodGet, path, token, nil, http.StatusOK,
 	)["data"].(map[string]any)
 	if detail["status"] != "ASSIGNED" ||
-		detail["driver"].(map[string]any)["id"] != "local-driver" ||
+		detail["driver"].(map[string]any)["id"] != "hcm-car-1" ||
 		detail["path"].([]any)[0].(map[string]any)["status"] != "ARRIVED" {
 		t.Fatalf("sandbox status simulation failed: %#v", detail)
 	}

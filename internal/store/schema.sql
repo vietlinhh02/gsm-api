@@ -52,6 +52,25 @@ CREATE TABLE IF NOT EXISTS orders (
 
 CREATE INDEX IF NOT EXISTS orders_client_created_idx ON orders (client_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS simulated_drivers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    travel_mode TEXT NOT NULL CHECK (travel_mode IN ('Car', 'Motorcycle')),
+    latitude DOUBLE PRECISION NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+    longitude DOUBLE PRECISION NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+    model TEXT NOT NULL,
+    license_plate TEXT NOT NULL UNIQUE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS driver_id TEXT REFERENCES simulated_drivers(id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS quote_fee_id TEXT REFERENCES estimates(fee_id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS booking_hash TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS orders_quote_idx ON orders (quote_fee_id);
+CREATE UNIQUE INDEX IF NOT EXISTS orders_active_driver_idx ON orders (environment, driver_id)
+    WHERE status IN ('ASSIGNED', 'IN PROCESS');
+
 CREATE TABLE IF NOT EXISTS webhook_events (
     event_id TEXT PRIMARY KEY,
     payload JSONB NOT NULL,
@@ -59,6 +78,24 @@ CREATE TABLE IF NOT EXISTS webhook_events (
     next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     delivered_at TIMESTAMPTZ
 );
+
+CREATE TABLE IF NOT EXISTS webhook_inboxes (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    environment TEXT NOT NULL,
+    receive_token TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS webhook_receipts (
+    id BIGSERIAL PRIMARY KEY,
+    inbox_id TEXT NOT NULL REFERENCES webhook_inboxes(id) ON DELETE CASCADE,
+    headers JSONB NOT NULL,
+    body TEXT NOT NULL,
+    received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS webhook_receipts_inbox_idx ON webhook_receipts (inbox_id, id DESC);
+ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS target_url TEXT NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS geocode_cache (
     cache_key TEXT PRIMARY KEY,

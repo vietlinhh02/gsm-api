@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,36 +14,15 @@ func (a *API) createOrder(w http.ResponseWriter, r *http.Request) {
 	if !a.readJSON(w, r, &input) {
 		return
 	}
-	if input.ServiceID <= 0 || input.FeeID == "" || input.ServiceType == "" ||
-		!validPayment(input.PaymentMethod) {
-		writeError(
-			w,
-			http.StatusBadRequest,
-			400,
-			"service_id, service_type, fee_id, and valid payment_method are required",
-		)
-		return
-	}
-	if len(input.PartnerTripID) > 32 {
-		writeError(w, http.StatusBadRequest, 400, "partner_trip_id must be at most 32 characters")
-		return
-	}
-	requireDropoff := input.ServiceType != "RIDE-HOUR"
-	if err := validatePoints(input.Points, requireDropoff, true); err != nil {
-		writeError(w, http.StatusBadRequest, 400, err.Error())
-		return
-	}
-	if input.ServiceType == "RIDE-TRIP" && input.PartnerPaymentMethod == "B2B" {
-		if err := validateGreenConnect(input); err != nil {
-			writeError(w, http.StatusBadRequest, 400, err.Error())
-			return
-		}
-	}
 	if input.Addons == nil {
 		input.Addons = []Addon{}
 	}
-	if _, err := validateAddons(input.Addons, false); err != nil {
+	if err := validateBookingRequest(input); err != nil {
 		writeError(w, http.StatusBadRequest, 400, err.Error())
+		return
+	}
+	if err := validScenario(input, requestEnvironment(r.Context())); err != nil {
+		a.writeOperationError(w, "validate simulation", err)
 		return
 	}
 	quote, err := a.loadQuote(r, input.FeeID)
@@ -56,94 +34,12 @@ func (a *API) createOrder(w http.ResponseWriter, r *http.Request) {
 		a.dbError(w, "load estimate", err)
 		return
 	}
-	if quote.ClientID != clientID(r.Context()) ||
-		quote.Environment != requestEnvironment(r.Context()) ||
-		quote.ExpiresAt < time.Now().Unix() {
-		writeError(w, http.StatusBadRequest, 400, "fee_id is invalid or expired")
-		return
-	}
-	if quote.ServiceID != input.ServiceID || quote.ServiceType != input.ServiceType ||
-		quote.OrderTime != input.OrderTime ||
-		quote.PaymentMethod != input.PaymentMethod ||
-		!jsonEqual(quote.Addons, input.Addons) ||
-		!samePoints(quote.Points, input.Points) {
-		writeError(
-			w,
-			http.StatusBadRequest,
-			400,
-			"booking fields must match the estimate used for fee_id",
-		)
-		return
-	}
-	if input.OrderTime == 0 {
-		input.OrderTime = time.Now().Unix()
-	}
-	var travelMode string
-	err = a.Store.DB.QueryRowContext(r.Context(), `
-		SELECT travel_mode FROM services WHERE id=$1
-	`, input.ServiceID).
-		Scan(&travelMode)
+	payload, err := a.createQuotedOrder(r, input, quote)
 	if err != nil {
-		a.dbError(w, "load service for order", err)
+		a.writeOperationError(w, "create order", err)
 		return
 	}
-	orderID, err := newUUID()
-	if err != nil {
-		a.dbError(w, "generate order id", err)
-		return
-	}
-	payload, err := a.orderPayload(orderID, clientID(r.Context()), input, travelMode)
-	if err != nil {
-		a.dbError(w, "build order response", err)
-		return
-	}
-	payload["fare"] = quote.Response
-	encoded, _ := json.Marshal(payload)
-	tx, err := a.Store.DB.BeginTx(r.Context(), nil)
-	if err != nil {
-		a.dbError(w, "begin order", err)
-		return
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(r.Context(), `
-		INSERT INTO orders(
-			id,environment,client_id,status,order_time,payment_method,travel_mode,
-			service_type,service_id,partner_trip_id,payload
-		) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-	`, orderID, requestEnvironment(r.Context()), clientID(r.Context()),
-		"FINDING", input.OrderTime, input.PaymentMethod, travelMode,
-		input.ServiceType, input.ServiceID, input.PartnerTripID, encoded,
-	); err != nil {
-		a.dbError(w, "save order", err)
-		return
-	}
-	resource := resourceHref(r, orderID)
-	if err := a.enqueueWebhookTx(
-		tx, r.Context(), resource,
-		map[string]any{"order_id": orderID, "status": "FINDING"},
-		"order_status_changed", "FINDING", clientID(r.Context()),
-	); err != nil {
-		a.dbError(w, "queue initial order webhook", err)
-		return
-	}
-	if requestEnvironment(r.Context()) == "sandbox" {
-		_, err = tx.ExecContext(r.Context(), `
-			INSERT INTO sandbox_runs(order_id,resource_href,next_step_at)
-			VALUES($1,$2,GREATEST(NOW(),to_timestamp($3))+INTERVAL '5 seconds')
-		`, orderID, resource, input.OrderTime)
-		if err != nil {
-			a.dbError(w, "schedule sandbox trip", err)
-			return
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		a.dbError(w, "commit order", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{
-		"id": orderID, "partner_trip_id": input.PartnerTripID, "status": "FINDING",
-		"order_time": fmt.Sprint(input.OrderTime), "path": payload["path"], "geofence_id": "",
-	}})
+	writeJSON(w, http.StatusOK, map[string]any{"data": payload})
 }
 
 func (a *API) orderPayload(
@@ -177,7 +73,8 @@ func (a *API) orderPayload(
 	}
 	return map[string]any{
 		"id": orderID, "partner_trip_id": input.PartnerTripID, "status": "FINDING",
-		"order_time": fmt.Sprint(input.OrderTime), "path": path,
+		"geofence_id": "",
+		"order_time":  fmt.Sprint(input.OrderTime), "path": path,
 		"payment_method": input.PaymentMethod, "vehicle": map[string]any{},
 		"driver": map[string]any{}, "customer": map[string]any{}, "service": service,
 		"tracking_url": "", "created_by": ownerID, "cancel_code": map[string]any{},

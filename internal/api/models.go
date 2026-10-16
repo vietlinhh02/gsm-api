@@ -60,6 +60,8 @@ type HourEstimateInput struct {
 }
 
 type CreateOrderInput struct {
+	WebhookInboxID       string  `json:"webhook_inbox_id,omitempty"`
+	SandboxScenario      string  `json:"sandbox_scenario,omitempty"`
 	OrderTime            int64   `json:"order_time"`
 	ServiceID            int64   `json:"service_id"`
 	ServiceType          string  `json:"service_type"`

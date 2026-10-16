@@ -38,7 +38,37 @@ func (s *Store) Migrate(ctx context.Context) error {
 	if _, err := s.DB.ExecContext(ctx, string(contents)); err != nil {
 		return fmt.Errorf("apply schema: %w", err)
 	}
-	return s.seedServices(ctx)
+	if err := s.seedServices(ctx); err != nil {
+		return err
+	}
+	return s.seedDrivers(ctx)
+}
+
+func (s *Store) seedDrivers(ctx context.Context) error {
+	_, err := s.DB.ExecContext(ctx, `
+		INSERT INTO simulated_drivers
+		(id,name,phone_number,travel_mode,latitude,longitude,model,license_plate) VALUES
+		('hn-car-1','Tài xế ô tô Hà Nội 1','+84900000001','Car',21.029,105.851,
+		 'VF5','29A-000.01 (TEST)'),
+		('hn-car-2','Tài xế ô tô Hà Nội 2','+84900000002','Car',21.033,105.818,
+		 'VF6','29A-000.02 (TEST)'),
+		('hn-bike-1','Tài xế xe máy Hà Nội 1','+84900000003','Motorcycle',21.028,105.85,
+		 'VinFast Feliz S','29M1-000.01 (TEST)'),
+		('hn-bike-2','Tài xế xe máy Hà Nội 2','+84900000004','Motorcycle',21.032,105.819,
+		 'VinFast Evo200','29M1-000.02 (TEST)'),
+		('hcm-car-1','Tài xế ô tô HCM 1','+84900000005','Car',10.777,106.701,
+		 'VF5','50A-000.01 (TEST)'),
+		('hcm-car-2','Tài xế ô tô HCM 2','+84900000006','Car',10.78,106.703,
+		 'VF6','50A-000.02 (TEST)'),
+		('hcm-bike-1','Tài xế xe máy HCM 1','+84900000007','Motorcycle',10.777,106.701,
+		 'VinFast Feliz S','50M1-000.01 (TEST)'),
+		('hcm-bike-2','Tài xế xe máy HCM 2','+84900000008','Motorcycle',10.78,106.703,
+		 'VinFast Evo200','50M1-000.02 (TEST)')
+		ON CONFLICT (id) DO NOTHING`)
+	if err != nil {
+		return fmt.Errorf("seed simulated drivers: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) seedServices(ctx context.Context) error {

@@ -1,6 +1,8 @@
 import { endpoints } from "#lib/catalog.mjs";
 
 function allowedMethod(pathname) {
+  const inboxMethod = webhookMethod(pathname);
+  if (inboxMethod) return inboxMethod;
   if (/^v1\/sandbox\/ride\/orders\/[^/]+\/events$/.test(pathname)) return "GET";
   if (pathname === "healthz") return "GET";
   if (!pathname.startsWith("v1/sandbox/")) return undefined;
@@ -8,6 +10,13 @@ function allowedMethod(pathname) {
   const normalized = "/" + pathname;
   if (/^\/v1\/sandbox\/ride\/orders\/[^/]+$/.test(normalized)) return "GET";
   return endpoints.find((endpoint) => endpoint.path.split("?")[0] === normalized)?.method;
+}
+
+function webhookMethod(pathname) {
+  if (/^webhook-inbox\/[a-f0-9]{64}$/.test(pathname)) return "POST";
+  if (pathname === "v1/sandbox/webhook-inboxes") return "POST";
+  if (/^v1\/sandbox\/webhook-inboxes\/[\w-]+(\/receipts\/\d+)?$/.test(pathname)) return "GET";
+  return undefined;
 }
 
 function errorResponse(status, message) {
@@ -30,11 +39,42 @@ function validateRequest(request, segments) {
   return null;
 }
 
-function forwardedHeaders(request) {
+function forwardedHeaders(request, pathname) {
+  if (pathname.startsWith("webhook-inbox/")) return webhookReceiverHeaders(request);
   const headers = new Headers();
-  for (const name of ["authorization", "content-type", "accept-language", "accept"]) {
+  for (const name of [
+    "authorization",
+    "content-type",
+    "accept-language",
+    "accept",
+    "x-environment",
+    "x-vsf-signature",
+    "x-vsf-signature-secondary",
+  ]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
+  }
+  return headers;
+}
+
+function webhookReceiverHeaders(request) {
+  const headers = new Headers(request.headers);
+  for (const name of [
+    "host",
+    "content-length",
+    "connection",
+    "transfer-encoding",
+    "keep-alive",
+    "upgrade",
+    "te",
+    "trailer",
+    "expect",
+    "proxy-connection",
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+  ]) {
+    headers.delete(name);
   }
   return headers;
 }
@@ -96,7 +136,7 @@ async function fetchBackend(request, segments, options) {
       origin.replace(/\/$/, "") + "/" + pathname + new URL(request.url).search,
       {
         method: request.method,
-        headers: forwardedHeaders(request),
+        headers: forwardedHeaders(request, pathname),
         body: await upstreamBody(request, pathname, options),
         cache: "no-store",
         signal,

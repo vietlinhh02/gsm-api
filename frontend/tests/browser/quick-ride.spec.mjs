@@ -9,12 +9,12 @@ test("Hanoi bike quote → booking → driver → completed with the real backen
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/playground");
-  await selectOption(page, "Loại xe test", "Xe máy · Green Motorcycle");
+  await selectOption(page, "Loại xe", "Xe máy");
   const responsePromise = page.waitForResponse(
     (response) =>
       response.url().includes("/ride/estimate/order") && response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "So sánh giá ô tô / xe máy", exact: true }).click();
+  await page.getByRole("button", { name: "So sánh giá", exact: true }).click();
   const response = await responsePromise;
   expect(response.status()).toBe(200);
   const data = (await response.json()).data;
@@ -29,29 +29,21 @@ test("Hanoi bike quote → booking → driver → completed with the real backen
   await expect(page.getByRole("heading", { name: /^Giá xe máy:/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Điểm đón:", exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: "Điểm đến:", exact: false })).toBeVisible();
-  await expect(page.locator(".route-map .leaflet-overlay-pane path")).toHaveCount(1);
+  await expect(page.locator(".route-map canvas")).toBeVisible();
   await page.screenshot({ path: "test-results/quick-ride-pricing.png", fullPage: true });
-  await page.getByRole("button", { name: "Đặt chuyến đã chọn", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Chuyến test · FINDING", exact: true }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Đặt xe", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Đang tìm tài xế", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Bắt đầu chuyến", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Gán tài xế", exact: true }).click();
-  await expect(page.getByText(/Simulated Driver · VinFast Feliz S/)).toBeVisible();
+  await expect(page.getByText(/VinFast Feliz S/)).toBeVisible();
   await page.getByRole("button", { name: "Bắt đầu chuyến", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Chuyến test · IN PROCESS", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Hủy chuyến test", exact: true })).toBeDisabled();
+  await expect(page.getByRole("heading", { name: "Đang di chuyển", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hủy chuyến", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Hoàn thành chuyến", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Chuyến test · COMPLETED", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Đã hoàn thành", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Gán tài xế", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Tải lại chuyến", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Chuyến test · COMPLETED", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Đã hoàn thành", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -60,7 +52,7 @@ test("map selection, swap, explicit address search, failures and mobile layout",
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/playground");
-  await expect(page.locator(".route-map.leaflet-container")).toBeVisible();
+  await expect(page.locator(".route-map")).toBeVisible();
   const pickup = page.locator(".selected-location").first();
   const dropoff = page.locator(".selected-location").last();
   const originalPickup = await pickup.innerText();
@@ -81,21 +73,18 @@ test("map selection, swap, explicit address search, failures and mobile layout",
       },
     });
   });
-  await page.getByLabel("Tìm địa chỉ tại điểm đang chọn", { exact: true }).fill("Văn Miếu, Hà Nội");
+  await page.getByLabel("Tìm địa chỉ đến", { exact: true }).fill("Văn Miếu, Hà Nội");
   expect(calls).toBe(0);
   await page.getByRole("button", { name: "Tìm địa chỉ", exact: true }).click();
-  await page.getByRole("button", { name: "Văn Miếu, Hà Nội", exact: true }).click();
+  await page.getByRole("button", { name: "Chọn địa chỉ", exact: true }).click();
+  await page.getByRole("option", { name: /Văn Miếu/, exact: false }).click();
   await expect(dropoff).toContainText("Văn Miếu, Hà Nội");
   await page.route("**/api/backend/v1/sandbox/ride/estimate/order", (route) =>
     route.fulfill({ status: 502, json: { message: "Provider test unavailable" } }),
   );
-  await page.getByRole("button", { name: "So sánh giá ô tô / xe máy", exact: true }).click();
-  await expect(
-    page.getByText("HTTP 502: Provider test unavailable", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Đặt chuyến đã chọn", exact: true })).toHaveCount(
-    0,
-  );
+  await page.getByRole("button", { name: "So sánh giá", exact: true }).click();
+  await expect(page.getByText(/HTTP 502: Chưa kết nối được dịch vụ/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Đặt xe", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

@@ -6,9 +6,7 @@ test("sandbox receives SSE status changes without polling", async ({ page }) => 
   let manualUpdates = 0;
   await page.route("**/api/backend/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    expect(path === "/api/backend/healthz" || path.startsWith("/api/backend/v1/sandbox/")).toBe(
-      true,
-    );
+    expect(path).toMatch(/^\/api\/backend\/(healthz$|v1\/sandbox\/)/);
     let data;
     if (path.endsWith("/token")) {
       data = { access_token: "sandbox-test-token" };

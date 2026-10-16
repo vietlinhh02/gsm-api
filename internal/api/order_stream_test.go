@@ -73,16 +73,18 @@ func TestOrderStreamPushAndReconnect(t *testing.T) {
 	}
 	assigned := readStreamOrder(t, reader)
 	if assigned["status"] != "ASSIGNED" ||
-		assigned["driver"].(map[string]any)["id"] != "local-driver" {
+		assigned["driver"].(map[string]any)["id"] != "hcm-car-1" {
 		t.Fatal(assigned)
 	}
 	pointID := assigned["path"].([]any)[0].(map[string]any)["id"]
-	requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/update-status", token,
-		map[string]any{"update_type": "point", "order_id": id,
-			"point_id": pointID, "point_status": "ARRIVED"}, http.StatusOK)
-	pointOrder := readStreamOrder(t, reader)
-	if pointOrder["path"].([]any)[0].(map[string]any)["status"] != "ARRIVED" {
-		t.Fatal(pointOrder)
+	for _, status := range []string{"ARRIVING", "NEARED", "ARRIVED"} {
+		requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/update-status", token,
+			map[string]any{"update_type": "point", "order_id": id,
+				"point_id": pointID, "point_status": status}, http.StatusOK)
+		pointOrder := readStreamOrder(t, reader)
+		if pointOrder["path"].([]any)[0].(map[string]any)["status"] != status {
+			t.Fatal(pointOrder)
+		}
 	}
 	response.Body.Close()
 	requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/update-status", token,

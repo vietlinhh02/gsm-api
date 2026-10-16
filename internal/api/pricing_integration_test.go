@@ -30,6 +30,11 @@ func TestHanoiQuotePersistence(t *testing.T) {
 				"payment_method": payment, "points": []Point{pickup, dropoff},
 			}, http.StatusOK)["data"].(map[string]any)
 		orderID := created["id"].(string)
+		if payment == "partner_pay" {
+			requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/update-status", token,
+				map[string]any{"update_type": "order", "order_id": orderID, "status": "FINDING"},
+				http.StatusOK)
+		}
 		requestJSON(t, h.server.URL, http.MethodPost, "/v1/sandbox/ride/update-status", token,
 			map[string]any{"update_type": "order", "order_id": orderID, "status": "ASSIGNED"},
 			http.StatusOK)

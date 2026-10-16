@@ -72,7 +72,11 @@ export const endpoints = [
         },
       ],
     },
-    notes: ["Danh sách dịch vụ và khu vực phục vụ là dữ liệu mẫu."],
+    notes: [
+      "Danh mục và đội xe là dữ liệu mẫu. available_vehicles đếm xe rảnh trong bán kính 10 km.",
+      "eta_pickup là số phút ước lượng từ khoảng cách đường chim bay ở tốc độ 25 km/h.",
+      "Danh sách và báo giá chưa giữ chỗ xe; hệ thống kiểm tra lại khi gán tài xế.",
+    ],
   },
   {
     id: "trip",
@@ -193,6 +197,18 @@ export const endpoints = [
       field("addons", "object[]", false, "Cấp cao nhất: { id, apply: true }; khớp báo giá."),
       field("partner_trip_id", "string", false, "Tham chiếu nội bộ; tối đa 32 byte UTF-8."),
       field("partner_payment_method", "string", false, "B2B đối với Green Connect."),
+      field(
+        "webhook_inbox_id",
+        "string",
+        false,
+        "ID hộp thư webhook đã tạo bằng cùng client. Chuyến sẽ gửi event vào hộp thư này.",
+      ),
+      field(
+        "sandbox_scenario",
+        "string",
+        false,
+        "Chỉ Sandbox: normal, no_drivers, driver_reject, driver_cancel hoặc payment_failed.",
+      ),
     ],
     sample: {
       service_id: 2179,
@@ -210,7 +226,12 @@ export const endpoints = [
         path: points,
       },
     },
-    notes: ["Sau khi có báo giá, bấm Dùng báo giá để đặt trong playground."],
+    notes: [
+      "Sau khi có báo giá, bấm Dùng báo giá để đặt trong playground.",
+      "Gửi lại cùng nội dung và fee_id trả về chuyến đã tạo. Đổi nội dung trả HTTP 409.",
+      "payment_failed cần partner_pay; thanh toán Sandbox được mô phỏng trước khi tìm xe.",
+      "Kịch bản chọn trong Chuyến đi mới, hoặc gửi sandbox_scenario trong JSON đặt chuyến.",
+    ],
     hasPoints: true,
   },
   {
@@ -385,6 +406,7 @@ export const guides = {
     title: "Webhooks",
     description: "Nhận thông báo khi trạng thái chuyến đi thay đổi",
     paragraphs: [
+      "Trong Playground, mở tab Webhook rồi bấm Tạo link webhook để có URL nhận POST và hộp thư xem request.",
       "Webhooks gửi event khi trạng thái chuyến hoặc điểm dừng thay đổi. " +
         "Event được lưu trong PostgreSQL trước khi chuyển tới receiver.",
       "Thông báo có thể trùng hoặc đến khác thứ tự; dùng event_id để đối chiếu. " +

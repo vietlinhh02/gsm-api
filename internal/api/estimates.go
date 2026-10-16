@@ -70,7 +70,7 @@ func (a *API) estimateTrip(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusBadRequest, 400, "unknown service_id")
 				return
 			}
-			a.dbError(w, "create trip estimate", err)
+			a.writeOperationError(w, "create trip estimate", err)
 			return
 		}
 		estimates = append(estimates, item)
@@ -115,7 +115,8 @@ func (a *API) buildTripEstimate(r *http.Request, input tripQuoteInput) (map[stri
 		}, nil
 	}
 	if len(input.Addons) > 0 && service.TravelMode != "Car" {
-		return nil, fmt.Errorf("addons are unavailable for this service")
+		return nil, &httpError{Status: 400, Code: 400,
+			Message: "addons are unavailable for this service"}
 	}
 	addonCost, err := validateAddons(input.Addons, true)
 	if err != nil {

@@ -18,6 +18,8 @@ import {
   simulationActions,
   quoteEstimates,
   quoteGeometry,
+  sandboxScenarios,
+  simulationMessage,
 } from "#lib/quick-ride.mjs";
 import { useQuickRide } from "@/components/use-quick-ride";
 import { useCurrentLocation } from "@/components/use-current-location";
@@ -209,7 +211,7 @@ function AddressSearch({ ride, disabled }) {
   );
 }
 
-function PassengerControls({ ride, busy }) {
+function PassengerControls({ ride, busy, sandbox }) {
   const { form, updateForm } = ride;
   return (
     <VStack gap={4}>
@@ -250,9 +252,10 @@ function PassengerControls({ ride, busy }) {
             { value: "partner_pay", label: "Đối tác thanh toán" },
           ]}
           onChange={(payment) => updateForm({ payment })}
-          isDisabled={busy}
+          isDisabled={busy || form.scenario === "payment_failed"}
         />
       </Grid>
+      {sandbox && <SimulationControls ride={ride} busy={busy} />}
       <Button
         label="So sánh giá"
         icon={<SiteIcon name="currency-circle-dollar" />}
@@ -260,6 +263,29 @@ function PassengerControls({ ride, busy }) {
         isDisabled={busy}
         width="100%"
       />
+    </VStack>
+  );
+}
+
+function SimulationControls({ ride, busy }) {
+  return (
+    <VStack gap={2}>
+      <Selector
+        label="Kịch bản giả lập"
+        value={ride.form.scenario}
+        options={sandboxScenarios}
+        onChange={(scenario) =>
+          ride.updateForm({
+            scenario,
+            ...(scenario === "payment_failed" ? { payment: "partner_pay" } : {}),
+          })
+        }
+        isDisabled={busy}
+        width="100%"
+      />
+      <Text as="p" type="supporting">
+        Kịch bản áp dụng cho chuyến mới. Giá báo trước chưa giữ chỗ xe.
+      </Text>
     </VStack>
   );
 }
@@ -279,6 +305,9 @@ function FareComparison({ ride, busy }) {
     id: item.service.id,
     service: item.service.travel_mode === "Car" ? "Ô tô" : "Xe máy",
     fare: item.fee_unavailable ? item.err_msg : money(item.estimate_info.estimate.total_pay),
+    available:
+      ride.quote.services.find((service) => service.id === item.service.id)?.available_vehicles ??
+      0,
   }));
   return (
     <VStack gap={4} aria-live="polite">
@@ -288,6 +317,7 @@ function FareComparison({ ride, busy }) {
         columns={[
           { key: "service", header: "Loại xe" },
           { key: "fare", header: "Giá dự kiến" },
+          { key: "available", header: "Xe rảnh lúc tra cứu" },
         ]}
         density="compact"
       />
@@ -319,9 +349,9 @@ function FareComparison({ ride, busy }) {
 }
 
 function driverSummary(order) {
-  if (!order.driver?.id) return "Chưa gán tài xế. Đơn đang tìm tài xế.";
+  if (!order.driver?.id) return "Chưa gán tài xế.";
   const vehicle = order.vehicle ?? {};
-  const name = order.driver.id === "local-driver" ? "Tài xế mô phỏng" : order.driver.name;
+  const name = order.driver.name;
   const plate = vehicle.license_plate?.replace(" (TEST)", "") ?? "";
   return `${name} · ${vehicle.model} · ${plate}`;
 }
@@ -388,11 +418,24 @@ function OrderControls({ ride, model }) {
       <Text as="p" type="supporting" className="order-reference">{`Mã chuyến: ${order.id}`}</Text>
       {fare && <Text as="p">{`Giá đã chốt: ${money(fare.total_pay)}`}</Text>}
       <Text as="p">{driverSummary(order)}</Text>
+      <SimulationNotice order={order} />
       <Text as="p" type="supporting">
         Sandbox tự chạy chuyến và cập nhật trạng thái. Mỗi bước khoảng 5 giây.
       </Text>
       <OrderButtons ride={ride} model={model} />
     </VStack>
+  );
+}
+
+function SimulationNotice({ order }) {
+  const message = simulationMessage(order);
+  if (!message) return null;
+  return (
+    <Banner
+      status={order.status === "CANCELLED" ? "error" : "info"}
+      title="Diễn biến chuyến"
+      description={message}
+    />
   );
 }
 
@@ -418,7 +461,12 @@ export default function QuickRide({ model }) {
           <PointControls ride={ride} busy={state.busy} geometry={geometry} />
         </VStack>
         <VStack gap={5} className="quick-column">
-          <PassengerControls ride={ride} busy={state.busy} />
+          <PassengerControls ride={ride} busy={state.busy} sandbox={true} />
+          {state.webhookInbox && (
+            <Text as="p" type="supporting">
+              Chuyến mới sẽ gửi event vào hộp thư ở tab Webhook.
+            </Text>
+          )}
           {ride.error && (
             <Banner status="error" title="Chưa thực hiện được" description={ride.error} />
           )}

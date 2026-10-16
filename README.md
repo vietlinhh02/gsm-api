@@ -64,7 +64,7 @@ Open `http://localhost:3000/playground`; Sandbox is the only test environment.
 Select a Hanoi route preset, click the OpenStreetMap map to choose pickup/dropoff, or explicitly
 search an address. Compare car/bike fares, choose a vehicle, then book. Tokens are obtained
 automatically using the editable local credentials. Sandbox trips automatically assign a driver, simulate pickup/dropoff, start and complete.
-Each step takes about five seconds (roughly 55 seconds for a two-point trip).
+Each step takes about five seconds (roughly 55 seconds for an available two-point cash trip).
 The playground subscribes to an authenticated SSE stream for active sandbox orders.
 It receives an initial snapshot and updates after committed order/point changes, without polling. Manual status, cancellation
 and refresh buttons remain available for testing. Scheduled trips begin after `order_time`. The JSON endpoint tester remains available below.
@@ -90,6 +90,42 @@ OSRM's driving profile is also used to approximate motorcycle routes and duratio
 model motorcycle-specific access restrictions. Orders are persisted, but drivers are fixtures,
 assigned by the automatic sandbox worker or manual sandbox status actions. There is no live dispatch, GPS tracking or actual
 payment processing. Service area metadata is Hanoi; it does not enforce a geographic boundary.
+
+## Simulated fleet and failure scenarios
+
+The local fleet contains two cars and two motorcycles in each of central Hanoi and HCM.
+`list-available-services` reports `available_vehicles` and `enable` from currently idle drivers
+within 10 km of the first pickup. `eta_pickup` estimates minutes using straight-line distance
+at 25 km/h, with a one-minute minimum; zero means no available vehicle. These snapshots and
+fare quotes do not reserve a driver. Pricing still uses the dated Hanoi reference tariff.
+
+Assignment chooses the nearest enabled, idle driver matching the vehicle mode. PostgreSQL
+row locks and a unique active-driver index prevent a driver serving two active orders in the
+same environment, including orders owned by different clients. Production and sandbox fleets
+are isolated. Completing or cancelling a trip releases its driver. Fleet positions stay at
+their seed locations; this does not simulate GPS movement. Edit `simulated_drivers` in the
+local database to change positions or disable drivers; startup preserves existing rows.
+
+In the playground, select **Dùng Sandbox**, then **Kịch bản giả lập**. API callers can set
+`sandbox_scenario` on `POST /v1/sandbox/ride/create-order`:
+
+| Value | Behavior |
+| --- | --- |
+| `normal` (default) | Select an available nearby driver and run the trip. |
+| `no_drivers` | Force no availability; cancel with `NO_DRIVERS` after three searches. |
+| `driver_reject` | The first candidate declines; exclude it and search again. |
+| `driver_cancel` | The first assigned driver cancels; release it and find another driver. |
+| `payment_failed` | Requires `partner_pay`; cancel with `PAYMENT_FAILED` before dispatch. |
+
+Without a forced scenario, real simulated fleet exhaustion also retries up to three searches.
+Sandbox `partner_pay` starts at `WAITING_FOR_PAYMENT`; the first worker step simulates payment.
+Order details and SSE snapshots include `simulation` with the scenario, attempts, event and
+failure reason. Scheduled trips do not start before `order_time`. Manual order/point changes
+reject invalid transitions with HTTP 409. Repeating the same order status is harmless.
+
+Each `fee_id` can create one order. Concurrent or later retries with identical booking fields
+return that order, even after the quote expires. Reusing it with different booking fields
+returns HTTP 409; a new unbooked quote that has expired returns HTTP 400.
 
 ## Live sandbox order updates
 
@@ -124,8 +160,37 @@ progress in PostgreSQL and resumes pending trips after restart. Cancelled and co
 stop advancing. Orders created before this feature remain manual. Status updates and webhook
 events commit atomically.
 
-Set `WEBHOOK_URL` to your HTTP callback receiver to enable real outbound callbacks.
-An empty URL disables callback delivery; no receiver URL is fabricated. Set `WEBHOOK_SIGNING_KEY` to add `X-VSF-Signature` (HMAC-SHA256 over the raw JSON body). Deliveries are persisted and retried up to seven times; delivery is asynchronous. Sandbox does not emit `driver.location.updated` events.
+Set `WEBHOOK_URL` to use your own HTTP callback receiver for orders without a selected inbox.
+Generated inboxes work when `WEBHOOK_URL` is empty. Set `WEBHOOK_SIGNING_KEY` to add
+`X-VSF-Signature` (HMAC-SHA256 over the raw JSON body). Deliveries are persisted and retried
+up to seven times; delivery is asynchronous. Sandbox does not emit `driver.location.updated` events.
+
+## Generated webhook inboxes
+
+Open the playground's **Webhook** tab and click **Tạo link webhook**. Copy the URL or use
+**Gửi event thử**, then inspect requests in the inbox. The selected inbox is attached to new
+playground bookings automatically and restored after reload in the same browser tab.
+Creating another link selects a new inbox; previously generated links and booked trips remain valid.
+
+API clients can create an inbox with `POST /v1/sandbox/webhook-inboxes` and a sandbox Bearer
+token. The response contains `data.id` and `data.receive_path`. Send `webhook_inbox_id` in
+`create-order` to route that order's callbacks into it. The generated path accepts public POSTs
+at `/webhook-inbox/{token}`; the frontend's copied URL includes its `/api/backend` proxy prefix.
+The receive token has 256 bits of randomness. Reading an inbox requires its creator's client token:
+
+- `GET /v1/sandbox/webhook-inboxes/{id}` returns metadata and the latest 100 receipt summaries.
+- `GET /v1/sandbox/webhook-inboxes/{id}/receipts/{receipt}` returns the full body and headers.
+
+Receipts are persisted before HTTP 200 is returned. Bodies are limited to 256 KiB of UTF-8
+text without NUL bytes; malformed JSON is preserved for inspection. Headers exclude credentials
+(`Authorization`, `Cookie`, `Proxy-Authorization`); up to 64 headers are stored, with values
+limited to 1024 bytes. The UI refreshes every three seconds while the inbox tab is active.
+
+Order/point callbacks include a snapshot of `data.simulation`, plus `driver_id` when assigned
+and `cancel_code` for cancelled trips. Transient rejection/reassignment events therefore retain
+their original reason even if the trip has advanced before the callback is received.
+Inbox callbacks are real HTTP POSTs to this API's loopback receiver, use the same persisted
+retry queue, and do not inherit external-receiver OAuth credentials.
 
 ## Verification
 

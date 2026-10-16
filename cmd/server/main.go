@@ -31,13 +31,15 @@ func main() {
 	if err := db.Migrate(ctx); err != nil {
 		logger.Fatal(err)
 	}
-	service := api.New(db, api.ConfigFromEnv(), logger)
-	go service.RunWebhookWorker(ctx)
-	go service.RunSandboxWorker(ctx)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+	config := api.ConfigFromEnv()
+	config.LocalOrigin = "http://127.0.0.1:" + port
+	service := api.New(db, config, logger)
+	go service.RunWebhookWorker(ctx)
+	go service.RunSandboxWorker(ctx)
 	server := &http.Server{
 		Addr:              ":" + port,
 		BaseContext:       func(net.Listener) context.Context { return ctx },

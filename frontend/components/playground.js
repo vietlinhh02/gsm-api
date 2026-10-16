@@ -17,6 +17,7 @@ import { TabList, Tab } from "@astryxdesign/core/TabList";
 import { endpoints } from "#lib/catalog.mjs";
 import { usePlayground } from "@/components/use-playground";
 import QuickRide from "@/components/quick-ride";
+import WebhookInbox from "@/components/webhook-inbox";
 import { apiErrorMessage } from "#lib/http.mjs";
 import SiteIcon from "@/components/site-icon";
 
@@ -289,9 +290,23 @@ export default function Playground({ endpointId }) {
           icon={<SiteIcon name="key" />}
           panelId="playground-auth"
         />
+        <Tab
+          value="webhook"
+          label="Webhook"
+          icon={<SiteIcon name="plugs" />}
+          panelId="playground-webhook"
+        />
       </TabList>
       <section id="playground-ride" role="tabpanel" aria-label="Đặt chuyến" hidden={tab !== "ride"}>
         <QuickRide model={model} />
+      </section>
+      <section
+        id="playground-webhook"
+        role="tabpanel"
+        aria-label="Webhook"
+        hidden={tab !== "webhook"}
+      >
+        <WebhookInbox key={model.state.clientId} model={model} active={tab === "webhook"} />
       </section>
       <section id="playground-api" role="tabpanel" aria-label="API & JSON" hidden={tab !== "api"}>
         <Grid columns={2} gap={6} align="start" className="playground-grid">

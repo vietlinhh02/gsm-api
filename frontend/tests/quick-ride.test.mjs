@@ -8,6 +8,7 @@ import {
   selectedBooking,
   simulationActions,
   quoteGeometry,
+  simulationMessage,
 } from "#lib/quick-ride.mjs";
 
 test("preset, swap and map selections preserve complete passenger points", () => {
@@ -35,6 +36,15 @@ test("preset, swap and map selections preserve complete passenger points", () =>
   });
   assert.equal(found.address.length, 512);
   assert.equal(found.place_id, "new");
+});
+
+test("sandbox explains dispatch failures, retries and payment failures", () => {
+  assert.equal(simulationMessage(null), "");
+  assert.equal(simulationMessage({ simulation: { event: "assigned" } }), "");
+  assert.match(simulationMessage({ simulation: { reason: "NO_DRIVERS" } }), /3 lần tìm/);
+  assert.match(simulationMessage({ simulation: { reason: "PAYMENT_FAILED" } }), /thất bại/);
+  assert.match(simulationMessage({ simulation: { event: "driver_rejected" } }), /từ chối/);
+  assert.match(simulationMessage({ simulation: { event: "driver_cancelled" } }), /hủy nhận/);
 });
 
 test("comparison request binds contacts and payment to both service IDs", () => {

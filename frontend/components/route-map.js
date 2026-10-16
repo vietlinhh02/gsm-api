@@ -159,7 +159,11 @@ export default function RouteMap({ points, geometry, onSelect, isDisabled, appea
 
   return (
     <VStack gap={3}>
-      <section ref={host} className="route-map" aria-label="Bản đồ hành trình" />
+      <section
+        ref={host}
+        className={`route-map map-style-${appearance}`}
+        aria-label="Bản đồ hành trình"
+      />
       {error && <Banner status="warning" title="Bản đồ chưa sẵn sàng" description={error} />}
     </VStack>
   );

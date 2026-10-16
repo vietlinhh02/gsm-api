@@ -27,6 +27,27 @@ export const hanoiPresets = [
 
 export const money = (value) => new Intl.NumberFormat("vi-VN").format(value) + "đ";
 
+export const sandboxScenarios = [
+  { value: "normal", label: "Bình thường · chọn xe gần nhất" },
+  { value: "no_drivers", label: "Hết xe · tìm lại rồi hủy" },
+  { value: "driver_reject", label: "Tài xế từ chối · tìm xe khác" },
+  { value: "driver_cancel", label: "Tài xế hủy sau khi nhận · tìm lại" },
+  { value: "payment_failed", label: "Thanh toán đối tác thất bại" },
+];
+
+export function simulationMessage(order) {
+  const messages = {
+    NO_DRIVERS: "Không tìm được xe rảnh trong bán kính 10 km sau 3 lần tìm. Chuyến đã hủy.",
+    PAYMENT_FAILED: "Thanh toán đối tác thất bại. Chuyến đã hủy trước khi tìm tài xế.",
+    driver_rejected: "Tài xế đầu tiên từ chối. Đang tìm tài xế khác.",
+    driver_cancelled: "Tài xế đã hủy nhận chuyến. Đang tìm tài xế khác.",
+    searching: "Đang tìm xe rảnh gần điểm đón…",
+    payment_accepted: "Thanh toán mô phỏng thành công. Đang tìm xe.",
+  };
+  const simulation = order?.simulation;
+  return messages[simulation?.reason] ?? messages[simulation?.event] ?? "";
+}
+
 /** Build complete booking points from a local Hanoi route preset. */
 export function presetPoints(id) {
   const preset = hanoiPresets.find((item) => item.id === id) ?? hanoiPresets[0];

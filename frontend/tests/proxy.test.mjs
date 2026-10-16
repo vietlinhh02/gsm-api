@@ -2,6 +2,62 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { forwardRequest } from "#lib/proxy.mjs";
 
+test("generated receiver links accept public POSTs and preserve webhook headers", async () => {
+  const path = ["webhook-inbox", "a".repeat(64)];
+  const response = await forwardRequest(
+    new Request("http://docs/api/backend/receiver", {
+      method: "POST",
+      body: '{"event_id":"event"}',
+      headers: {
+        "content-type": "application/json",
+        "x-vsf-signature": "signature",
+        "x-environment": "sandbox",
+        "x-debug-source": "custom-sender",
+      },
+    }),
+    path,
+    {
+      fetchImpl: async (url, options) => {
+        assert.equal(url, `http://localhost:8081/${path.join("/")}`);
+        assert.equal(options.headers.get("x-vsf-signature"), "signature");
+        assert.equal(options.headers.get("x-environment"), "sandbox");
+        assert.equal(options.headers.get("x-debug-source"), "custom-sender");
+        assert.equal(options.headers.has("authorization"), false);
+        return Response.json({ message: "received" });
+      },
+    },
+  );
+  assert.equal(response.status, 200);
+});
+
+test("inbox management routes preserve authentication and reject wrong methods", async () => {
+  for (const [path, method] of [
+    [["v1", "sandbox", "webhook-inboxes"], "POST"],
+    [["v1", "sandbox", "webhook-inboxes", "inbox-id"], "GET"],
+    [["v1", "sandbox", "webhook-inboxes", "inbox-id", "receipts", "42"], "GET"],
+  ]) {
+    const response = await forwardRequest(
+      new Request("http://docs/api/backend/inbox", {
+        method,
+        headers: { authorization: "Bearer test-token" },
+      }),
+      path,
+      {
+        fetchImpl: async (_url, options) => {
+          assert.equal(options.headers.get("authorization"), "Bearer test-token");
+          return Response.json({ data: {} });
+        },
+      },
+    );
+    assert.equal(response.status, 200);
+  }
+  const invalid = await forwardRequest(new Request("http://docs/api/backend/inbox"), [
+    "webhook-inbox",
+    "a".repeat(64),
+  ]);
+  assert.equal(invalid.status, 405);
+});
+
 test("proxy preserves token, query, status and JSON response without caching", async () => {
   const request = new Request(
     "http://docs/api/backend/v1/sandbox/ride/orders/id?extra_components=path",

@@ -14,13 +14,13 @@ import (
 func TestSandboxTripSteps(t *testing.T) {
 	for _, mode := range []string{"Car", "Motorcycle"} {
 		t.Run(mode, func(t *testing.T) {
-			payload := map[string]any{"status": "FINDING", "travel_mode": mode, "path": []Point{
+			payload := map[string]any{"status": "ASSIGNED", "travel_mode": mode, "path": []Point{
 				{ID: "pickup", Status: "CREATED", Latitude: 21, Longitude: 105},
 				{ID: "dropoff", Status: "CREATED", Latitude: 22, Longitude: 106},
 			}}
 			var statuses []string
 			var points []string
-			for range 11 {
+			for range 10 {
 				data, event, err := sandboxStep(payload)
 				if err != nil {
 					t.Fatal(err)
@@ -31,7 +31,7 @@ func TestSandboxTripSteps(t *testing.T) {
 					points = append(points, data["point_id"].(string)+":"+data["point_status"].(string))
 				}
 			}
-			if !reflect.DeepEqual(statuses, []string{"ASSIGNED", "IN PROCESS", "COMPLETED"}) {
+			if !reflect.DeepEqual(statuses, []string{"IN PROCESS", "COMPLETED"}) {
 				t.Fatalf("unexpected status sequence: %v", statuses)
 			}
 			want := []string{"pickup:ARRIVING", "pickup:NEARED", "pickup:ARRIVED", "pickup:COMPLETED",
@@ -45,9 +45,6 @@ func TestSandboxTripSteps(t *testing.T) {
 					point.ProofOfWork.Latitude != point.Latitude {
 					t.Fatalf("missing arrival/proof: %#v", point)
 				}
-			}
-			if payload["driver"].(map[string]any)["id"] != "local-driver" {
-				t.Fatal("driver missing")
 			}
 		})
 	}

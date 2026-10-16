@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { requestApi, apiErrorMessage } from "#lib/http.mjs";
+import { useSavedInbox } from "@/components/use-saved-inbox";
 import {
   initialState,
   chooseEndpoint,
@@ -20,7 +21,19 @@ function failureMessage(error) {
 export function usePlayground(endpointId) {
   const [state, setState] = useState(() => initialState(endpointId));
   const endpoint = findEndpoint(state.endpointId);
-  const patch = (values) => setState((previous) => ({ ...previous, ...values }));
+  const saved = useSavedInbox(`gsm-webhook-inbox:sandbox:${state.clientId}`);
+  const webhookInbox = state.webhookInbox ?? saved.inbox;
+  const patch = useCallback(
+    (values) =>
+      setState((previous) => ({
+        ...previous,
+        ...values,
+        ...(Object.hasOwn(values, "clientId") || Object.hasOwn(values, "clientSecret")
+          ? { webhookInbox: null, token: "" }
+          : {}),
+      })),
+    [],
+  );
   const selectEndpoint = (id) => setState((previous) => chooseEndpoint(previous, id));
 
   async function authenticate() {
@@ -61,6 +74,9 @@ export function usePlayground(endpointId) {
     try {
       validatePath(state.path);
       const request = parseRequestBody(endpoint.method, state.body);
+      if (endpoint.id === "create" && webhookInbox && !request.webhook_inbox_id) {
+        request.webhook_inbox_id = webhookInbox.id;
+      }
       const result = await requestApi({
         path: state.path,
         method: endpoint.method,
@@ -82,7 +98,14 @@ export function usePlayground(endpointId) {
     }
   }
 
-  return { state, endpoint, patch, selectEndpoint, authenticate, send };
+  return {
+    state: { ...state, webhookInbox, webhookInboxError: state.webhookInbox ? "" : saved.error },
+    endpoint,
+    patch,
+    selectEndpoint,
+    authenticate,
+    send,
+  };
 }
 
 function tokenFromResponse(result) {
