@@ -34,7 +34,7 @@ for ((attempt = 0; attempt < 60; attempt++)); do
   case "$status" in
   finished)
     curl --fail --show-error --silent --max-time 15 \
-      https://gsm-api.103.176.113.163.sslip.io/healthz >/dev/null
+      https://gsm-api.aaisee.me/healthz >/dev/null
     printf 'Coolify deployed %s\n' "$image"
     exit 0
     ;;

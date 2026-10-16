@@ -4,13 +4,12 @@ The backend and PostgreSQL are managed by Coolify in the **GSM API / production*
 The frontend is deployed separately with Vercel CLI.
 
 - Frontend: https://gsm-api-eight.vercel.app
-- Backend: https://gsm-api.103.176.113.163.sslip.io
+- Backend: https://gsm-api.aaisee.me
 - Coolify project: http://103.176.113.163:8000/project/bssz9vpwhtx8qst1pib26xea
 - Backend application: `jsqliuzreybxzqv9vjfcdilc` (`gsm-api-backend`).
 - Managed PostgreSQL: `vvnm9dnlurb8dahdflt1niyh` (`gsm-api-postgres`).
 
-The backend hostname uses sslip.io DNS and a certificate managed by the Coolify proxy.
-A custom domain can replace it later. Vercel's server-side `API_ORIGIN` points to the HTTPS
+The backend hostname points to the VPS with an A record; Coolify manages its HTTPS certificate. Vercel's server-side `API_ORIGIN` points to the HTTPS
 backend; browsers call the same-origin `/api/backend` proxy, including for SSE.
 
 ## Backend pipeline
@@ -65,7 +64,7 @@ From `frontend/`:
 
 ```sh
 vercel link --yes --project gsm-api --scope peanuttt666s-7352s-projects
-vercel env add API_ORIGIN production --value https://gsm-api.103.176.113.163.sslip.io --yes
+vercel env add API_ORIGIN production --value https://gsm-api.aaisee.me --yes
 vercel deploy --prod --yes --scope peanuttt666s-7352s-projects
 ```
 

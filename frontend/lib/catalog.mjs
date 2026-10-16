@@ -375,7 +375,7 @@ export const guides = {
         "Chọn token endpoint và scope theo môi trường trong bảng dưới.",
     ],
     code: [
-      "curl -X POST https://gsm-api.103.176.113.163.sslip.io/v1/public/token \\",
+      "curl -X POST https://gsm-api.aaisee.me/v1/public/token \\",
       "  -H 'Content-Type: application/x-www-form-urlencoded' \\",
       "  --data-urlencode 'client_id=local-client' \\",
       "  --data-urlencode 'client_secret=local-secret' \\",
@@ -398,7 +398,7 @@ export const guides = {
         event_id: "<uuid>",
         event_time: 1770350401,
         event_type: "order_status_changed",
-        resource_href: "https://gsm-api.103.176.113.163.sslip.io/v1/ride/orders/<id>",
+        resource_href: "https://gsm-api.aaisee.me/v1/ride/orders/<id>",
         data: { order_id: "<id>", status: "ASSIGNED" },
         meta: { resource_id: "<id>", status: "ASSIGNED", user_id: "local-client" },
       },

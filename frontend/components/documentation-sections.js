@@ -43,7 +43,7 @@ export function EndpointUsage({ endpoint, documentation }) {
 
 export function RequestExamples({ endpoint }) {
   const lines = [
-    'API_BASE_URL="https://gsm-api.103.176.113.163.sslip.io"',
+    'API_BASE_URL="https://gsm-api.aaisee.me"',
     'ACCESS_TOKEN="<access_token>"',
     "",
     `curl -X ${endpoint.method} "$API_BASE_URL${endpoint.path}" \\`,
